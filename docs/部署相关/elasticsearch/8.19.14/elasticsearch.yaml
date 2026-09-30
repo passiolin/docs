@@ -1,0 +1,17 @@
+cluster.name: dev-es-cluster
+node.name: dev-es-master-0
+node.roles: ["master"]
+network.host: 10.10.10.246
+http.port: 9200
+transport.port: 9300
+discovery.seed_hosts: ["10.10.10.246:9300"]
+cluster.initial_master_nodes: ["dev-es-master-0"]
+
+
+xpack.security.enabled: true
+xpack.security.transport.ssl.enabled: true
+xpack.security.transport.ssl.verification_mode: certificate
+xpack.security.transport.ssl.keystore.path: /data/elasticsearch-master/config/elastic-certificates.p12
+xpack.security.transport.ssl.truststore.path: /data/elasticsearch-master/config/elastic-certificates.p12
+xpack.security.transport.ssl.keystore.password: "ipuff.online"
+xpack.security.transport.ssl.truststore.password: "ipuff.online"

@@ -1,0 +1,70 @@
+pipeline {
+    agent { label 'jdk-21' }
+
+    environment {
+        FEISHU_WEBHOOK = "https://open.feishu.cn/open-apis/bot/v2/hook/c5d59a33-368f-46fd-a25e-a16417a736fe"
+        BUILD_URL      = "http://192.168.0.150:8080/"
+        // 注意：URL 末尾空格已去除，否则会导致链接失效
+        VERSION        = "${sh(returnStdout: true, script: 'git rev-parse --short=8 HEAD').trim()}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Notify Start') {
+            steps {
+                script {
+                    sh "chmod +x ./deploy/feishu.sh"
+                    sh "./deploy/feishu.sh start"
+                }
+            }
+        }
+
+        stage('Build with build.sh') {
+            steps {
+                script {
+                    sh "chmod +x ./deploy/build.sh"
+                    sh "./deploy/build.sh"
+                }
+            }
+        }
+
+        stage('Push Docker Image with push.sh') {
+            steps {
+                script {
+                    sh "chmod +x ./deploy/push.sh"
+                    sh """
+                        export VERSION=${VERSION}
+                        ./deploy/push.sh
+                    """
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            script {
+                sh "./deploy/feishu.sh success"
+            }
+        }
+        failure {
+            script {
+                // 获取最后 50 行日志作为失败原因
+                sh """
+                    LOG_TAIL=\$(tail -n 50 ${BUILD_URL}job/${JOB_NAME}/${BUILD_NUMBER}/consoleText 2>/dev/null || echo "无法获取日志")
+                    ./deploy/feishu.sh failure "\${LOG_TAIL}"
+                """
+            }
+        }
+        aborted {
+            script {
+                sh "./deploy/feishu.sh failure \"构建被手动中止\""
+            }
+        }
+    }
+}

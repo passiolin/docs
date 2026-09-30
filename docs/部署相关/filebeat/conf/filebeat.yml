@@ -1,0 +1,160 @@
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-gateway-*/logs/*.log
+  fields:
+    type: "cloud-gateway"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-mqtt-*/logs/*.log
+  fields:
+    type: "cloud-mqtt"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-device-*/logs/*.log
+  fields:
+    type: "cloud-device"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after    
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-member-*/logs/*.log
+  fields:
+    type: "cloud-member"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after    
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-data-*/logs/*.log
+  fields:
+    type: "cloud-data"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after  
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-admin-*/logs/*.log
+  fields:
+    type: "cloud-admin"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after  
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-infrastructure-*/logs/*.log
+  fields:
+    type: "cloud-infrastructure"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after        
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-mall*/logs/*.log
+  fields:
+    type: "cloud-mall"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-smarthome*/logs/*.log
+  fields:
+    type: "cloud-smarthome"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after
+- type: log
+  enabled: true
+  paths:
+    - /data/cloud/cloud-auth*/logs/*.log
+  fields:
+    type: "cloud-auth"
+  fields_under_root: true
+  encoding: utf-8
+  multiline.pattern: ^[0-9]{4}\-[0-9]{2}\-[0-9]{2}
+  multiline.negate: true
+  multiline.match: after  
+setup.kibana:
+  host: "localhost:5601"
+
+
+setup.ilm.enabled: false
+output.elasticsearch:
+  enabled: true
+  hosts: ["10.40.0.155:9200"]
+  username: elastic
+  password: xxxx
+  indices:
+    - index: "cloud-mqtt-%{+yyyy.MM.dd}"  
+      when.contains:
+        type: "cloud-mqtt"
+    - index: "cloud-gateway-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-gateway"
+    - index: "cloud-device-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-device"
+    - index: "cloud-infrastructure-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-infrastructure"
+    - index: "cloud-admin-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-admin"
+    - index: "cloud-member-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-member"
+    - index: "cloud-sequence-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-sequence"
+    - index: "cloud-data-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-data"
+    - index: "cloud-mall-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-mall"        
+    - index: "cloud-auth-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-auth" 
+    - index: "cloud-smarthome-%{+yyyy.MM.dd}"
+      when.contains:
+        type: "cloud-smarthome"                
+processors:
+- drop_fields:
+     fields: ["agent.type","agent.name", "agent.version","log.file.path","log.offset","input.type","ecs.version","host.name","agent.ephemeral_id","agent.hostname","agent.id","_id","_index","_score","_suricata.eve.timestamp","agent.hostname","cloud. availability_zone","host.containerized","host.os.kernel","host.os.name","host.os.version"]
+
+
