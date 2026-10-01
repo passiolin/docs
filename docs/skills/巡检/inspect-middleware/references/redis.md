@@ -1,12 +1,13 @@
 # Redis 巡检(inspect-middleware / redis)
 
 > **实测状态**:✅ 已实测 —— Redis 8.0.5(Ubuntu 26.04 打包版,2026-09-30),单机模式;INFO 各段输出已验证可解析。两条实测教训已写入阈值:**碎片率必须加 used_memory 前置条件**(小实例碎片率必然虚高)、**默认 maxmemory=0 且 noeviction**。
+> **哨兵/集群实测补充(2026-10-01,docker 三节点)**:R11 的哨兵口径(含 num-other-sentinels 验收)、集群形态输出、exporter 实测指标名均已回填,部署细节见 [部署相关/redis](../../../部署相关/redis/README.md)。
 
 ## 定位与依赖
 
 - `redis-cli` 可达,巡检账号通过 ACL 或只读从库执行(`INFO`/`CONFIG GET` 为只读);
-- 指标面可选:redis_exporter 接入后各 INFO 项均有对应指标;
-- 集群模式额外查 `CLUSTER INFO`(cluster_state:ok)与 `CLUSTER NODES` 的 fail 状态。
+- 指标面可选:redis_exporter 接入后各 INFO 项均有对应指标(实测 v1.66.0,451 个指标:redis_up / redis_memory_used_bytes / redis_memory_max_bytes / redis_connected_clients / redis_blocked_clients / redis_slowlog_length / redis_rdb_last_bgsave_status / redis_evicted_keys_total / redis_keyspace_hits_total / redis_master_link_up 等,与 R 系列一一对应);
+- 集群模式额外查 `CLUSTER INFO`(cluster_state:ok)与 `CLUSTER NODES` 的 fail 状态;哨兵形态核 `SENTINEL master` 的 num-slaves / num-other-sentinels(见 R11)。
 
 ## 巡检项清单
 
@@ -63,6 +64,25 @@ redis-cli INFO stats | grep -E "^connected_clients|^blocked_clients|^rejected_co
 
 ```bash
 redis-cli INFO replication | grep -E "^role|^connected_slaves|^master_link_status"
+```
+
+**R11 哨兵形态实测补充(2026-10-01,三哨兵)**:
+
+```bash
+redis-cli -p 26379 SENTINEL master mymaster | sed -n '/num-slaves/{n;p};/num-other-sentinels/{n;p}'
+# 实测:2  2   ← num-slaves 与 num-other-sentinels,两者与拓扑不符即哨兵组不健康
+redis-cli -p 26379 SENTINEL get-master-addr-by-name mymaster   # 当前主地址(应用侧同款)
+```
+
+**判"哨兵失效"的实测教训**:`num-other-sentinels=0` 时哨兵各自为战,quorum 永远凑不齐——**主挂了也不会切换**,而 SENTINEL master 的其他字段看起来正常。哨兵形态巡检必须核这一项;根因常见为 announce-ip 配置错误。
+
+**集群形态实测输出(三主三从,2026-10-01)**:
+
+```bash
+redis-cli -p 7001 CLUSTER INFO | grep -E "^cluster_state|^cluster_size"
+# cluster_state:ok / cluster_size:3
+redis-cli -p 7001 CLUSTER KEYSLOT user:1001   # (integer) 5712(键→槽定位)
+# 普通客户端打到非归属节点:(error) MOVED 15495 10.10.12.127:7005(集群模式客户端应自动跟随,巡检 CLI 探活看到 MOVED 不是故障)
 ```
 
 **R12 慢日志**

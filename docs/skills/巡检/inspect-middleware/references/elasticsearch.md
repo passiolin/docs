@@ -1,6 +1,7 @@
 # Elasticsearch 巡检(inspect-middleware / elasticsearch)
 
 > **实测状态**:✅ 已实测 —— Elasticsearch 8.19.14(deb 包,Ubuntu 26.04,2026-09-30);部署坑已在实验机实测复现(见"版本差异与已知坑",本文档最有价值部分);API 探针(_cluster/health / _cat/nodes / _cat/indices)在启动完成后补测通过,实测输出见命令明细注释。
+> **docker 集群实测补充(2026-10-01,三节点 + 单机安全形态)**:三节点集群的 health/_cat/nodes 输出、杀节点 yellow 语义(ES01)、快照 SUCCESS 实测(ES11)、单机认证形态(401 口径)均已回填,部署细节见 [部署相关/elasticsearch](../../../部署相关/elasticsearch/README.md)。
 
 ## 定位与依赖
 
@@ -47,6 +48,17 @@ timeout 10 curl -s "localhost:9200/_cluster/allocation/explain?pretty"   # 仅�
 "status" : "green"           "number_of_nodes" : 1
 "unassigned_shards" : 0      "active_shards_percent_as_number" : 100.0
 ```
+
+三节点集群实测输出(docker,2026-10-01):
+
+```
+"status" : "green"  "number_of_nodes" : 3
+_cat/nodes?h=name,heap.percent,node.role,master:
+es-3  7 cdfhilmrstw *
+es-1  5 cdfhilmrstw -
+```
+
+**杀节点实测语义(ES01 定级依据)**:停掉一个持有主分片的节点后,集群 15 秒内转为 `"status":"yellow"` + `number_of_nodes:2`,**检索与写入均正常**(副本自动顶替成主)——**yellow = 副本未凑齐但数据完整可服务,不是故障态**;节点回归约 2~3 分钟后自动回 green。red 才是"有主分片彻底不在"(P0)。
 
 **ES03/ES08 分片与索引视图**
 
@@ -101,6 +113,8 @@ timeout 10 curl -s "localhost:9200/_snapshot/_all/_all?filter_path=snapshots.*.s
 # 取 end_time 最近且 state=SUCCESS 的记录,距今 >7 天即 P1;state=FAILED/IN_PROGRESS 长挂亦列出
 ```
 
+快照实测补充(2026-10-01,docker 三节点):fs 仓库 + 全量快照实测 `"state":"SUCCESS"`;**前提是 elasticsearch.yml 配了 `path.repo` 白名单**(不配则注册仓库直接报 repository_exception,巡检发现"配了仓库却快照失败"时先查这项)。
+
 **ES12 证书有效期**(security 关闭的环境记"不适用")
 
 ```bash
@@ -122,7 +136,8 @@ timeout 10 openssl s_client -connect localhost:9200 </dev/null 2>/dev/null | ope
 
   处置:`elasticsearch-keystore remove xpack.security.transport.ssl.keystore.secure_password`(truststore 同名项、http 层两项同理),清完再启动;另一条路是保留默认安全开启,采集凭据后统一走 https 访问(生产推荐);
 - **vm.max_map_count 基线不足(实测复现)**:新装内核默认 `vm.max_map_count=65530`,ES bootstrap 检查要求 ≥262144,不满足直接拒启。处置:`sysctl -w vm.max_map_count=262144` 并写入 /etc/sysctl.d/ 持久化;**该项同时是 inspect-server sysctl 基线的应采集项**,巡检 ES 主机时一并核对;
-- **高负载下 API 不响应 ≠ 宕机**:本实验机即因负载未在超时窗口完成采样(本文"待补实测"的直接原因);ES 对探测有并发限流,判 ES01 P0 前先复核端口与 systemd 进程,避免把"慢"误报成"死"。
+- **高负载下 API 不响应 ≠ 宕机**:本实验机即因负载未在超时窗口完成采样(本文"待补实测"的直接原因);ES 对探测有并发限流,判 ES01 P0 前先复核端口与 systemd 进程,避免把"慢"误报成"死";
+- **docker 形态补充(2026-10-01 实测)**:① 只挂 yml 会因缺 log4j2.properties 等 crash(须全量提取 config 再覆盖);② 安全开启 + 绑非回环地址会被 TLS bootstrap check 卡死(单机快速形态绑 127.0.0.1 + ELASTIC_PASSWORD);③ **"正确密码也 401"= 密码源不是你以为的那个**——陈旧 keystore 藏在挂载的 config 目录里,清 data 不解决,要连 `config/elasticsearch.keystore` 一起清;④ 单机/新节点首启 2~3 分钟无响应属正常。
 
 ## 处置手册(初步参考,未经本环境演练;处置须运维负责人指示)
 

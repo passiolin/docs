@@ -1,0 +1,26 @@
+# conf/application-local.yml —— jmqtt-broker 节点覆盖模板(实测 main@028f439)
+# 用法:放到工作目录(或 config/ 子目录)自动激活 local profile 覆盖;
+#       或任意路径 + SPRING_CONFIG_ADDITIONAL_LOCATION=file:/etc/jmqtt/overrides.yml
+# 原则:只写"与 jar 内默认不同"的项,其余继承 —— 与 common/role 分层同思想
+#--------------------------------------------------------------------
+jmqtt:
+  broker:
+    # 节点唯一标识(集群必配,单机建议也配)
+    id: node-1
+    # ---- 认证:生产换 sha256 摘要(上游 PwdUtil 生成)----
+    auth-username: jmqtt
+    auth-password: jmqtt
+    # ---- Redis:会话持久化 + admin 控制面 ----
+    redis:
+      enabled: true
+      mode: standalone          # standalone | sentinel | cluster
+      host: 10.10.12.137
+      port: 6379
+      password: JmqttRedis@2026
+      key-prefix: jmqtt         # ★ 与 admin 侧必须一致
+    # ---- 集群:Kafka 总线 ----
+    cluster-enabled: true
+    kafka:
+      enabled: true
+      bootstrap-servers: 10.10.12.128:9092
+      cluster-topic: jmqtt-cluster   # ★ 需先在 Kafka 建好(基线禁自动建)

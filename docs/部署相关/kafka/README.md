@@ -1,89 +1,38 @@
+# Kafka 部署与运维(kafka)
 
+> **版本基线**:Kafka 4.3(实测 4.3.1,官方镜像 `apache/kafka:4.3.1`,**KRaft 模式,无 ZooKeeper 依赖**)。与巡检文档(4.3.1)同版本。老 README 的 2.8.2 + ZooKeeper 形态已被本文取代。
+> **实测环境**:PVE 虚机 kafka-1/2(10.10.12.128/129,4C/4G,`--net=host`),2026-10-01。**实测覆盖**:KRaft 仲裁、topic/副本/ISR、生产消费与 offset/lag、杀 broker(Leader 迁移 + ISR 收缩 + 单副本可写 + 回归)、kafka_exporter(385 指标)。第三台(130)配置同型,实测当日其宿主 apt 锁未释放未能并入——三节点拓扑的参数与流程均已就绪,并入即生效。
+> **参数基线**:[conf/](conf/) 双层 env(`kafka-common.env` 三台一致 + `gen-node-env.sh` 注入节点差异)。
 
-### ENV
-ENV KAFKA_HEAP_OPTS default 1g 
+## 文章索引
 
-```properties
-echo "broker.id=2
-listeners=PLAINTEXT://:9092
-advertised.listeners=PLAINTEXT://10.52.187.147:9092
-num.network.threads=3
-num.io.threads=8
-socket.send.buffer.bytes=102400
-socket.receive.buffer.bytes=102400
-socket.request.max.bytes=104857600
-log.dirs=/opt/kafka/data
-num.partitions=3
-num.recovery.threads.per.data.dir=1
-offsets.topic.replication.factor=2
-transaction.state.log.replication.factor=2
-transaction.state.log.min.isr=2
-log.retention.hours=24
-log.segment.bytes=1073741824
-log.retention.check.interval.ms=300000
-zookeeper.connect=10.52.173.219:2181,10.52.161.252:2181,10.52.187.147:2181/kafka
-zookeeper.connection.timeout.ms=18000
-group.initial.rebalance.delay.ms=0" > /data/kafka/conf/server.properties
-```
+| 编号 | 文章 | 内容 | 状态 |
+| --- | --- | --- | --- |
+| 1 | [安装部署-单机](1.安装部署-单机.md) | 单节点 KRaft(自举仲裁、RF=1) | ✅ 已实测 |
+| 2 | [安装部署-KRaft集群](2.安装部署-KRaft集群.md) | CLUSTER_ID、env 双文件、uid 坑 | ✅ 已实测 |
+| 3 | [参数基线与配置模板](3.参数基线与配置模板.md) | 六组参数、副本与 ISR 语义 | ✅ 已实测 |
+| 4 | [数据面:topic 与收发](4.数据面topic与收发.md) | 建 topic、生产消费、lag | ✅ 已实测 |
+| 5 | [容灾实测](5.容灾实测.md) | 杀 broker 全流程 | ✅ 已实测 |
+| 6 | [日常运维与排障](6.日常运维与排障.md) | 排障字典(实测错误集) | ✅ 已实测 |
+| 7 | [监控与告警](7.监控与告警.md) | kafka_exporter、K 编号对齐 | ✅ 已实测 |
 
+## 阅读路径
 
-```shell
-mkdir -p /data/kafka/conf/
+从零搭:1(单机)→ 3 → 4(单机闭环)→ 2 → 5(进集群);接手在跑的:6 → 7。
 
-docker run -d \
---net=host \
---name=kafka \
---restart=always \
--e KAFKA_HEAP_OPTS="-Xmx2g -Xms2g" \
--v /data/kafka/data:/opt/kafka/data \
--v /data/kafka/logs:/opt/kafka/logs \
--v /data/kafka/conf/server.properties:/opt/kafka/config/server.properties \
-mirrors.ipuff.online/component/kafka:2.8.2
+## 资料索引
 
-chown -R 1000:1000 /data/kafka
-```
+- 官方文档:https://kafka.apache.org/documentation/
+- KRaft 模式:https://kafka.apache.org/documentation/#kraft
+- 官方镜像用法:https://hub.docker.com/r/apache/kafka
+- 配置项大全:https://kafka.apache.org/documentation/#brokerconfigs(链接为主,不整本入库,同 MySQL 篇纪律)
 
+## 关联
 
-```shell
-docker run -d \
---net=host \
---name=kafka \
---restart=always \
--e KAFKA_HEAP_OPTS="-Xmx1g -Xms1g" \
--v /data/kafka/data:/opt/kafka/data \
--v /data/kafka/logs:/opt/kafka/logs \
--v /data/kafka/conf/server.properties:/opt/kafka/config/server.properties \
-mirrors.ipuff.online/ipuff/public/kafka:2.8.2
-```
+- **巡检**:K01~K12 命令面/阈值见 [skills/巡检/inspect-middleware/references/kafka.md](../../skills/巡检/inspect-middleware/references/kafka.md);第 7 篇以 K 编号对齐指标面;
+- 老 ZooKeeper 模式组件仍需 ZK → [../zookeeper/](../zookeeper/README.md);
+- kafdrop(旧 UI)可继续用,另见其目录。
 
+## 新增与修改
 
-
-kraft
-
-```bash
-cat > /etc/systemd/system/kafka.service << 'EOF'
-[Unit]
-Description=Apache Kafka (KRaft mode)
-After=network.target
-
-[Service]
-Type=forking
-User=root
-Group=root
-WorkingDirectory=/data/kafka
-Environment="JAVA_HOME=/data/zulujdk"
-ExecStart=/data/kafka/bin/kafka-server-start.sh -daemon /data/kafka/config/kraft/server.properties
-ExecStop=/data/kafka/bin/kafka-server-stop.sh
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 重载 systemd 并启动服务
-systemctl daemon-reload
-systemctl start kafka
-systemctl enable kafka
-systemctl status kafka
-```
+同 MySQL 篇纪律:先实测再入文;参数唯一真源是 [conf/kafka-common.env](conf/kafka-common.env)。

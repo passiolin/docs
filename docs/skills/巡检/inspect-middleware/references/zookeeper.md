@@ -1,6 +1,7 @@
 # ZooKeeper 巡检(inspect-middleware / zookeeper)
 
 > **实测状态**:✅ 已实测 —— ZooKeeper 3.9.5(Ubuntu 26.04 打包版 zookeeperd,2026-09-30),单机 standalone;四字命令(ruok/mntr/srvr)输出经 /dev/tcp 实测验证可解析。集群项(Z02 拓扑核对 / Z10 同步)以多节点输出为准,单机按 standalone 判定或跳过。
+> **集群与 docker 实测补充(2026-10-01)**:三节点 ensemble(官方 docker 镜像)实测回填 Z02 集群输出与杀 leader 切换;**docker 镜像的 admin server 行为与打包版相反(默认开放)**,见"版本差异与已知坑"。部署细节见 [部署相关/zookeeper](../../../部署相关/zookeeper/README.md)。
 
 ## 定位与依赖
 
@@ -72,6 +73,14 @@ Mode: standalone # → Z02:leader/follower/observer/standalone
 Node count: 5
 ```
 
+srvr 集群实测输出(三节点 ensemble,2026-10-01;逐节点执行取 Mode 汇总):
+
+```text
+zk-1: Mode: follower     # 132 停机前为 leader;杀 leader 后 133 接管(秒级),132 回归自动降为 follower
+zk-2: Mode: follower     # → Z02 判定:3 节点应为恰 1 个 leader + 2 个 follower
+zk-3: Mode: leader
+```
+
 **Z05 连接来源定位**(按来源 IP 聚合,与 `zk_num_alive_connections` 对账;处置手册同款)
 
 ```bash
@@ -90,8 +99,9 @@ ss -tn '( dport = :2181 or sport = :2181 )' | awk 'NR>1{print $5}' | cut -d: -f1
 ## 版本差异与已知坑
 
 - `zk_watch_count` 为 3.5+ 字段;3.4 的 mntr 无此项,Z09 应判"数据缺失"而非当作 0;
-- `4lw.commands.whitelist` 在 3.5 起默认收紧(仅 srvr);Ubuntu 打包版已放行(实测),自装/升级/换发行版后行为可能变化,巡检前先核对 zoo.cfg;
-- admin server(8080)为 3.5+ 能力且需 zoo.cfg 显式 `admin.enableServer=true`;本环境实测未开放,以四字命令为主路径;
+- `4lw.commands.whitelist` 在 3.5 起默认收紧(仅 srvr);Ubuntu 打包版已放行(实测),**官方 docker 镜像未放行(2026-10-01 实测:ruok/mntr 空响应,zoo.cfg 显式放行后正常)**——docker 形态巡检前先核对挂载的 zoo.cfg;
+- admin server(8080)为 3.5+ 能力且需 zoo.cfg 显式 `admin.enableServer=true`;**Ubuntu 打包版实测未开放,但官方 docker 镜像实测默认开放**(`http://<host>:8080/commands/mntr` 返回 JSON)——两种形态主路径都是四字命令,docker 形态多一条 HTTP 通道且注意 8080 撞名;
+- 集群杀 leader 实测(2026-10-01):切换秒级完成,旧 leader 回归自动降为 follower、zxid 自动追平——Z02/Z10 的处置验证依据;
 - 本文档命令仅在 3.9.5 实测,跨大版本执行前先回核本节。
 
 ## 处置手册(初步参考,未经本环境演练;处置须运维负责人指示)

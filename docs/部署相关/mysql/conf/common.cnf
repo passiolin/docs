@@ -1,0 +1,55 @@
+# ============================================================
+# common.cnf —— 所有角色共享的参数基线(MySQL 8.4,实测 8.4.11)
+# 角色增量见 role-standalone.cnf / role-mgr.cnf
+# 内存参照:专机 8G 容器/虚机;换机器按第 2 篇公式重算
+# 变更纪律:改这里 → 重启生效 → 巡检 M11 对照本文件查漂移
+# ============================================================
+[mysqld]
+# ---------- 一、内存与 InnoDB(硬件拍板) ----------
+# 数据热集缓冲,专机给物理内存 50%~70%;必须显式设(镜像默认仅 128M)
+innodb_buffer_pool_size = 4G
+# redo 容量,写密集 1G~4G;在线可调(默认 100M)
+innodb_redo_log_capacity = 1G
+# 内存临时表上限(每会话,与 max_heap_table_size 取小者生效)
+tmp_table_size          = 64M
+max_heap_table_size     = 64M
+
+# ---------- 二、连接与线程(业务拍板) ----------
+# 每连接内存预算 × max_connections < 内存 − buffer pool − 开销
+max_connections     = 500
+# 空闲连接超时:默认 28800(8h)太长,连接池时代 10 分钟足够
+wait_timeout        = 600
+interactive_timeout = 600
+# 大报文(默认 64M,大批量导入按需临时调)
+max_allowed_packet  = 64M
+# 跳过 DNS 反查(要求账号 host 用 IP/网段,省一次建连开销)
+skip_name_resolve   = ON
+thread_cache_size   = 32
+
+# ---------- 三、持久化与 IO(安全等级+磁盘拍板) ----------
+# "双1"= 默认即基线,保证已提交事务不丢;性能敏感才讨论降级
+innodb_flush_log_at_trx_commit = 1
+sync_binlog                     = 1
+# Linux 上避免 OS 页缓存双缓冲(实测镜像默认即 O_DIRECT)
+innodb_flush_method  = O_DIRECT
+# SSD 起步值;机械盘回 200/2000
+innodb_io_capacity    = 2000
+innodb_io_capacity_max = 4000
+
+# ---------- 四、binlog 与复制(架构拍板,演进前置) ----------
+# binlog 8.0+ 默认开;保留期默认 30 天,按磁盘预算收紧为 7 天
+binlog_expire_logs_seconds = 604800
+# 单机就开 GTID:将来到主从/MGR 免停机切换(实测 8.4 默认 OFF)
+gtid_mode                = ON
+enforce_gtid_consistency = ON
+# 复制/MGR 时每台不同(gen-node-conf.sh 生成),单机保持 1
+server_id                = 1
+
+# ---------- 六、字符集与可观测(定一次不再动) ----------
+character-set-server = utf8mb4
+collation-server     = utf8mb4_0900_ai_ci
+default-time-zone    = "+08:00"
+slow_query_log       = ON
+long_query_time      = 1
+# error log 走 stderr(docker logs),巡检 M10 从 docker logs 取
+log_error_verbosity  = 2

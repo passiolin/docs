@@ -1,0 +1,34 @@
+# ============================================================
+# elasticsearch.yml —— ES 8.19 三节点基线(实测 8.19.14)
+# 节点差异(node.name)由 gen-node-yml.sh 注入;
+# 安全基线:内网明文(xpack.security.enabled=false),TLS 形态见第 3 篇
+# ============================================================
+
+# ---------- 集群与节点 ----------
+cluster.name: es-prod
+# node.name 由节点文件注入
+
+# ---------- 网络(docker --net=host) ----------
+network.host: 0.0.0.0
+http.port: 9200
+transport.port: 9300
+
+# ---------- 发现(三台种子 + 首次组网的主节点名单) ----------
+discovery.seed_hosts: ["10.10.12.134", "10.10.12.135", "10.10.12.136"]
+cluster.initial_master_nodes: ["es-1", "es-2", "es-3"]
+
+# ---------- 数据与日志(与 -v 挂载对应) ----------
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
+# 快照仓库白名单(第 4 篇备份用;不设则注册 fs 仓库直接报错)
+path.repo: ["/usr/share/elasticsearch/snapshots"]
+
+# ---------- 安全基线:内网明文 ----------
+# 8.x 默认开启(TLS+认证);实验/内网基线显式关闭,代价与开启路径见第 3 篇
+xpack.security.enabled: false
+
+# ---------- 内存锁定(联动宿主前置,见部署篇) ----------
+bootstrap.memory_lock: false
+
+# ---------- 单节点分片上限(巡检 ES10 联动;默认 1000) ----------
+# action.auto_create_index: false   # 索引是资产,显式创建(按需放开)

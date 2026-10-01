@@ -1,6 +1,7 @@
 # Kafka 巡检(inspect-middleware / kafka)
 
 > **实测状态**:✅ 已实测 —— Kafka 4.3.1 KRaft 单机(standalone 格式化),Ubuntu 26.04 上的 JDK,2026-09-30;topic/lag/quorum 命令输出已验证。多 broker 相关项(ISR 收缩、分区分布、quorum 多数派)在单机上的输出形态已在条目内标注,集群环境按同口径推演。
+> **集群实测补充(2026-10-01,docker 三节点 KRaft)**:K04/K05/K06 的集群输出、ISR 收缩实测、K02 的 exporter 指标名均在 docker 集群(2 broker 在线形态)实测回填,部署细节见 [部署相关/kafka](../../../部署相关/kafka/README.md)。
 
 ## 定位与依赖
 
@@ -82,6 +83,26 @@ timeout 60 kafka-metadata-quorum.sh --bootstrap-server localhost:9092 describe -
 # 老 ZK 模式(3.x):查 /controller 临时节点,确认 controller 所在 broker 与 epoch
 ```
 
+集群实测输出(3 节点拓扑,2 台在线):
+
+```
+LeaderId:               2
+LeaderEpoch:            1
+HighWatermark:          731
+CurrentVoters:          [{"id": 1, "endpoints": ["CONTROLLER://10.10.12.128:9093"]}, {"id": 2, ...}, {"id": 3, ...}]
+CurrentObservers:       []
+```
+
+- 判定:LeaderId ∈ Voters 且 HighWatermark 两次巡检有推进;**Voters 清单同时是 K01 的全员在线依据**(逐台可达即全员在)。
+
+**K04/K05 集群实测形态(杀一台 broker,12 秒后从幸存者视角)**:
+
+```
+Topic: device-events  Partition: 0  Leader: 2  Replicas: 1,2  Isr: 2
+```
+
+- Leader 自动迁移、ISR 从 [1,2] 收缩为 [2]——**K04 命中形态即此**(Isr 个数 < Replicas);节点回归后 ISR 自动回满,无需人工干预;
+
 **K07 磁盘水位**
 
 ```bash
@@ -113,7 +134,9 @@ timeout 60 kafka-configs.sh --bootstrap-server localhost:9092 --describe --entit
 
 - **4.x 格式化必须显式单机/多机模式**:config/server.properties 模板不再自带 `controller.quorum.voters`,`kafka-storage.sh format` 必须显式 `--standalone`(单机)或 `--initial-controllers`(多机),否则报 `you must specify one of the following: --standalone, --initial-controllers, or --no-initial-controllers`;
 - **lag 突增要关联节点网络与变更**(内部真实事故,2026-07-28):unattended-upgrade 升级 libc6 → systemd-networkd 重启 → Pod 下游连接重置 → mqtt_command 组 lag 102 万→640 万,14:39 自愈;排查用 `sum by (consumergroup, topic) (kafka_consumergroup_lag{topic="mqtt_command"})` 对齐时间线,并核对当日 apt/网络变更记录;
-- **CLI 的 JVM 启动在高负载机器上可能超过 20 秒**,巡检脚本必须给足 timeout(实测 60s 稳)。
+- **CLI 的 JVM 启动在高负载机器上可能超过 20 秒**,巡检脚本必须给足 timeout(实测 60s 稳);
+- **docker 部署的收发探活必须 `docker exec -i`**(2026-10-01 集群实测):管道喂 console-producer 时缺 `-i` 会**静默丢数据**(连接正常、无报错、offset 不涨);console-consumer 的 stdout 在官方镜像可能无输出,**数据链路对账以 consumer-groups describe 的 offset/lag 为准**;
+- exporter 实测指标名(v1.8.0,385 指标):`kafka_brokers`、`kafka_consumergroup_lag{...}`/`_sum`、`kafka_topic_partition_current_offset`——K01/K02/K08 的指标面直接可用。
 
 ## 处置手册(初步参考,未经本环境演练;处置须运维负责人指示)
 
