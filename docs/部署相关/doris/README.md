@@ -31,7 +31,7 @@ timeline
     2018 : "进入 Apache 孵化器,更名 Apache Doris"
     2020 : "StarRocks 从 Doris fork,由商业公司运营"
     2022 : "毕业成为 Apache 顶级项目"
-    2023 : "2.0:向量化 / 倒排索引 / pipeline 执行器"
+    2023 : "2.0 — 向量化、倒排索引、pipeline 执行器"
     2024 : "2.1 LTS(本套实测 2.1.7)"
 ```
 
