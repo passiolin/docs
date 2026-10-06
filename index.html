@@ -1371,6 +1371,8 @@ async function copyText(text) {
 /* ==================================================================
  * Mermaid（按需加载：页面里出现图表才引入，无图表零开销）
  * 加载顺序：npmmirror（国内镜像）→ jsdelivr → 本地 vendor 兜底
+ * 源选择结果记入 localStorage：成功过的源下次优先，失败过的 24h 内
+ * 直接跳过，避免每次刷新都重复下载两份 2.5MB
  * ================================================================== */
 const MERMAID_VERSION = '11.4.1';
 const MERMAID_SOURCES = [
@@ -1378,6 +1380,31 @@ const MERMAID_SOURCES = [
   `https://cdn.jsdelivr.net/npm/mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`,
   'assets/vendor/mermaid.min.js',
 ];
+const MERMAID_PREF_KEY = 'mdv-mmd-src';   // 上次成功源的下标
+const MERMAID_FAIL_KEY = 'mdv-mmd-fail';  // {源下标: 失败标记过期时间}
+
+function mermaidFailedSet() {
+  try {
+    const f = JSON.parse(localStorage.getItem(MERMAID_FAIL_KEY) || '{}');
+    for (const k of Object.keys(f)) if (f[k] < Date.now()) delete f[k];
+    return f;
+  } catch { return {}; }
+}
+
+function mermaidTryOrder() {
+  const failed = mermaidFailedSet();
+  const saved = Number(localStorage.getItem(MERMAID_PREF_KEY));
+  return MERMAID_SOURCES.map((_, i) => i).sort((a, b) => {
+    if (!!failed[a] !== !!failed[b]) return failed[a] ? 1 : -1; // 近期失败过的垫底
+    return (b === saved) - (a === saved);                        // 上次成功的优先
+  });
+}
+
+function markMermaidFail(i) {
+  const f = mermaidFailedSet();
+  f[i] = Date.now() + 24 * 3600 * 1000;
+  localStorage.setItem(MERMAID_FAIL_KEY, JSON.stringify(f));
+}
 
 function loadScript(src, timeoutMs) {
   return new Promise((resolve, reject) => {
@@ -1395,10 +1422,18 @@ function ensureMermaid() {
   if (!mermaidReady) {
     mermaidReady = (async () => {
       if (!window.mermaid) {
-        for (let i = 0; i < MERMAID_SOURCES.length; i++) {
-          // 前面的 CDN 源限时换下一个；本地 vendor 是最后兜底，不限时
-          try { await loadScript(MERMAID_SOURCES[i], i < MERMAID_SOURCES.length - 1 ? 10000 : 0); } catch { continue; }
-          if (window.mermaid) break;
+        const order = mermaidTryOrder();
+        for (let n = 0; n < order.length; n++) {
+          const i = order[n];
+          // 最后一个候选不限时；其余限时换下一个，失败源记 24h 跳过
+          try { await loadScript(MERMAID_SOURCES[i], n < order.length - 1 ? 10000 : 0); }
+          catch { markMermaidFail(i); continue; }
+          if (window.mermaid) {
+            localStorage.setItem(MERMAID_PREF_KEY, String(i));
+            const f = mermaidFailedSet();
+            if (f[i] !== undefined) { delete f[i]; localStorage.setItem(MERMAID_FAIL_KEY, JSON.stringify(f)); }
+            break;
+          }
         }
         if (!window.mermaid) throw new Error('mermaid 库加载失败（CDN 与本地均不可用）');
       }
