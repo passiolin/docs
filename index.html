@@ -495,6 +495,7 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
   border-radius: 11px;
   background: var(--bg);
   overflow-x: auto;
+  cursor: zoom-in;
 }
 .mermaid-block svg { max-width: 100%; height: auto; }
 .mermaid-block.mermaid-error {
@@ -513,6 +514,30 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
   margin: 0;
   font-size: 13px; color: var(--text-3);
 }
+
+/* Mermaid 灯箱（点击图表放大） */
+#mmdLightbox {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; flex-direction: column;
+  background: rgba(13, 16, 20, 0.78);
+  backdrop-filter: blur(3px);
+}
+#mmdLightbox[hidden] { display: none; }
+.mmdlb-bar { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 10px 14px; }
+.mmdlb-bar button {
+  min-width: 34px; padding: 6px 10px;
+  border: none; border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14); color: #fff;
+  font-size: 13px; cursor: pointer;
+}
+.mmdlb-bar button:hover { background: rgba(255, 255, 255, 0.26); }
+.mmdlb-percent { min-width: 46px; text-align: center; color: rgba(255, 255, 255, 0.85); font-size: 13px; font-variant-numeric: tabular-nums; }
+.mmdlb-stage { flex: 1; position: relative; overflow: hidden; cursor: grab; touch-action: none; }
+.mmdlb-stage.panning { cursor: grabbing; }
+.mmdlb-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mmdlb-panel { background: var(--bg); border-radius: 12px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45); overflow: hidden; }
+.mmdlb-panel svg { display: block; width: 100%; height: 100%; max-width: none; }
+.mmdlb-hint { padding: 8px 0 12px; text-align: center; color: rgba(255, 255, 255, 0.6); font-size: 12px; }
 
 .markdown-body .file-meta { margin: -6px 0 18px; font-size: 12.5px; color: var(--text-3); }
 .markdown-body .file-code pre { margin: 0; max-height: 72vh; overflow: auto; }
@@ -1247,6 +1272,20 @@ function postProcess(root, filePath) {
     const holder = document.createElement('div');
     holder.className = 'mermaid-block';
     holder.dataset.source = code.textContent;
+    holder.setAttribute('role', 'button');
+    holder.setAttribute('aria-label', '点击放大图表');
+    holder.tabIndex = 0;
+    let downX = 0, downY = 0;
+    const openIfSvg = () => { const svg = holder.querySelector('svg'); if (svg) mmdlbOpen(svg); };
+    holder.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY; });
+    holder.addEventListener('click', (e) => {
+      if (e.detail > 1) return; // 双击的第二段点击不反复开关
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return; // 拖动横向滚动不触发放大
+      openIfSvg();
+    });
+    holder.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openIfSvg(); }
+    });
     pre.replaceWith(holder);
   });
 
@@ -1486,6 +1525,168 @@ function showMermaidError(block, msg) {
   block.classList.add('mermaid-error');
   block.innerHTML = `<p class="mmd-err-msg">⚠ 图表无法渲染：${escapeHtml(msg)}</p>
     <pre class="mmd-err-src"><code>${escapeHtml(src)}</code></pre>`;
+}
+
+/* ==================================================================
+ * Mermaid 灯箱：点击图表放大查看
+ * 滚轮/双指缩放、拖拽平移、双击放大、Esc 或点击空白关闭
+ * ================================================================== */
+const mmdlb = { built: false, el: null, stage: null, canvas: null, panel: null, pct: null,
+  s: 1, tx: 0, ty: 0, vw: 0, vh: 0, vbw: 800, vbh: 400, fitS: 1 };
+let mmdlbCleanup = null;
+
+function mmdlbApply() {
+  mmdlb.canvas.style.transform = `translate(${mmdlb.tx}px, ${mmdlb.ty}px) scale(${mmdlb.s})`;
+  mmdlb.pct.textContent = `${Math.round(mmdlb.s * 100)}%`;
+}
+
+function mmdlbZoomAt(cx, cy, factor) {
+  const s2 = Math.min(8, Math.max(0.1, mmdlb.s * factor));
+  const k = s2 / mmdlb.s;
+  mmdlb.tx = cx - (cx - mmdlb.tx) * k;
+  mmdlb.ty = cy - (cy - mmdlb.ty) * k;
+  mmdlb.s = s2;
+  mmdlbApply();
+}
+
+function mmdlbFit() {
+  mmdlb.s = Math.min(mmdlb.vw / mmdlb.vbw, mmdlb.vh / mmdlb.vbh, 3);
+  mmdlb.fitS = mmdlb.s;
+  mmdlb.tx = (mmdlb.vw - mmdlb.vbw * mmdlb.s) / 2;
+  mmdlb.ty = (mmdlb.vh - mmdlb.vbh * mmdlb.s) / 2;
+  mmdlbApply();
+}
+
+function mmdlbClose() {
+  if (mmdlbCleanup) { mmdlbCleanup(); mmdlbCleanup = null; }
+  mmdlb.el.hidden = true;
+  document.body.style.overflow = '';
+}
+
+function mmdlbBuild() {
+  const el = document.createElement('div');
+  el.id = 'mmdLightbox';
+  el.hidden = true;
+  el.innerHTML = `
+    <div class="mmdlb-bar">
+      <span class="mmdlb-percent">100%</span>
+      <button type="button" data-act="out" aria-label="缩小">−</button>
+      <button type="button" data-act="in" aria-label="放大">＋</button>
+      <button type="button" data-act="fit">适应窗口</button>
+      <button type="button" data-act="close" aria-label="关闭">✕</button>
+    </div>
+    <div class="mmdlb-stage">
+      <div class="mmdlb-canvas"><div class="mmdlb-panel"></div></div>
+    </div>
+    <div class="mmdlb-hint">滚轮 / 双指缩放 · 拖动平移 · 双击放大 · Esc 或点击空白关闭</div>`;
+  document.body.appendChild(el);
+  mmdlb.el = el;
+  mmdlb.stage = el.querySelector('.mmdlb-stage');
+  mmdlb.canvas = el.querySelector('.mmdlb-canvas');
+  mmdlb.panel = el.querySelector('.mmdlb-panel');
+  mmdlb.pct = el.querySelector('.mmdlb-percent');
+
+  el.querySelector('.mmdlb-bar').addEventListener('click', (e) => {
+    const act = e.target.closest('button')?.dataset.act;
+    if (!act) return;
+    if (act === 'in') mmdlbZoomAt(mmdlb.vw / 2, mmdlb.vh / 2, 1.3);
+    else if (act === 'out') mmdlbZoomAt(mmdlb.vw / 2, mmdlb.vh / 2, 1 / 1.3);
+    else if (act === 'fit') mmdlbFit();
+    else if (act === 'close') mmdlbClose();
+  });
+
+  // 滚轮缩放（以鼠标位置为中心）
+  mmdlb.stage.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = mmdlb.stage.getBoundingClientRect();
+    mmdlbZoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+  }, { passive: false });
+
+  // 双击：放大 ↔ 适应窗口
+  mmdlb.stage.addEventListener('dblclick', () => {
+    if (mmdlb.s > mmdlb.fitS * 1.05) mmdlbFit();
+    else mmdlbZoomAt(mmdlb.vw / 2, mmdlb.vh / 2, 1.8);
+  });
+
+  // 单指/鼠标拖拽平移，双指捏合缩放
+  const ptrs = new Map();
+  let pan = null, pinch = null, stageDragged = false;
+  mmdlb.stage.addEventListener('pointerdown', (e) => {
+    mmdlb.stage.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) {
+      stageDragged = false;
+      pan = { x: e.clientX, y: e.clientY, tx: mmdlb.tx, ty: mmdlb.ty };
+    } else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const r = mmdlb.stage.getBoundingClientRect();
+      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), s: mmdlb.s,
+        cx: (a.x + b.x) / 2 - r.left, cy: (a.y + b.y) / 2 - r.top };
+      pan = null;
+    }
+  });
+  mmdlb.stage.addEventListener('pointermove', (e) => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pan) {
+      const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+      if (Math.hypot(dx, dy) > 4) { stageDragged = true; mmdlb.stage.classList.add('panning'); }
+      mmdlb.tx = pan.tx + dx;
+      mmdlb.ty = pan.ty + dy;
+      mmdlbApply();
+    } else if (pinch && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const d = Math.hypot(a.x - b.x, a.y - b.y);
+      if (d > 0) mmdlbZoomAt(pinch.cx, pinch.cy, (pinch.s * d / pinch.d) / mmdlb.s);
+    }
+  });
+  const endPtr = (e) => {
+    ptrs.delete(e.pointerId);
+    if (!ptrs.size) mmdlb.stage.classList.remove('panning');
+    if (ptrs.size < 2) pinch = null;
+    if (ptrs.size === 1) { const [p] = ptrs.values(); pan = { x: p.x, y: p.y, tx: mmdlb.tx, ty: mmdlb.ty }; }
+    else pan = null;
+  };
+  mmdlb.stage.addEventListener('pointerup', endPtr);
+  mmdlb.stage.addEventListener('pointercancel', endPtr);
+
+  // 点击空白处关闭（拖拽平移后不算点击；双击的第二段点击不关闭）
+  mmdlb.stage.addEventListener('click', (e) => {
+    if (e.detail > 1) return;
+    if (e.target !== mmdlb.stage || stageDragged) { stageDragged = false; return; }
+    mmdlbClose();
+  });
+}
+
+function mmdlbOpen(svg) {
+  if (!mmdlb.built) { mmdlbBuild(); mmdlb.built = true; }
+  const vb = svg.viewBox && svg.viewBox.baseVal;
+  mmdlb.vbw = (vb && vb.width) || svg.clientWidth || 800;
+  mmdlb.vbh = (vb && vb.height) || svg.clientHeight || 400;
+  const clone = svg.cloneNode(true);
+  clone.removeAttribute('style');
+  mmdlb.panel.style.width = `${mmdlb.vbw}px`;
+  mmdlb.panel.style.height = `${mmdlb.vbh}px`;
+  mmdlb.panel.replaceChildren(clone);
+  mmdlb.el.hidden = false;
+  document.body.style.overflow = 'hidden';
+  const r = mmdlb.stage.getBoundingClientRect();
+  mmdlb.vw = r.width;
+  mmdlb.vh = r.height;
+  mmdlbFit();
+
+  const onKey = (e) => { if (e.key === 'Escape') mmdlbClose(); };
+  const onResize = () => {
+    const nr = mmdlb.stage.getBoundingClientRect();
+    mmdlb.vw = nr.width; mmdlb.vh = nr.height;
+    mmdlbFit();
+  };
+  window.addEventListener('keydown', onKey);
+  window.addEventListener('resize', onResize);
+  mmdlbCleanup = () => {
+    window.removeEventListener('keydown', onKey);
+    window.removeEventListener('resize', onResize);
+  };
 }
 
 /* ==================================================================
