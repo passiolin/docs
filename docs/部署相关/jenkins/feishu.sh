@@ -1,6 +1,6 @@
 #!/bin/bash
 # 飞书机器人通知脚本
-# 用法: ./feishu_notify.sh <状态> [额外信息]
+# 用法: ./feishu.sh <状态> [额外信息]
 
 set -e
 

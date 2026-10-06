@@ -40,7 +40,7 @@ timeout 5 curl -sI http://localhost:8080/login | grep -i '^x-jenkins'   # 如 X-
 # 拿到版本号后对照 Jenkins 安全通告核对已知高危 CVE;命中未更记 P2,升级走变更窗口
 ```
 
-**J03 登录页探针**(待补实测;高负载首启慢,探针给足超时)
+**J03 登录页探针**(高负载首启慢,探针给足超时)
 
 ```bash
 timeout 15 curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/login

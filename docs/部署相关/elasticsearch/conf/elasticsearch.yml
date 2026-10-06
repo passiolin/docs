@@ -1,7 +1,7 @@
 # ============================================================
 # elasticsearch.yml —— ES 8.19 三节点基线(实测 8.19.14)
 # 节点差异(node.name)由 gen-node-yml.sh 注入;
-# 安全基线:内网明文(xpack.security.enabled=false),TLS 形态见第 3 篇
+# 安全基线:内网明文(xpack.security.enabled=false),TLS 形态见第 2 篇
 # ============================================================
 
 # ---------- 集群与节点 ----------
@@ -20,11 +20,11 @@ cluster.initial_master_nodes: ["es-1", "es-2", "es-3"]
 # ---------- 数据与日志(与 -v 挂载对应) ----------
 path.data: /usr/share/elasticsearch/data
 path.logs: /usr/share/elasticsearch/logs
-# 快照仓库白名单(第 4 篇备份用;不设则注册 fs 仓库直接报错)
+# 快照仓库白名单(第 5 篇备份用;不设则注册 fs 仓库直接报错)
 path.repo: ["/usr/share/elasticsearch/snapshots"]
 
 # ---------- 安全基线:内网明文 ----------
-# 8.x 默认开启(TLS+认证);实验/内网基线显式关闭,代价与开启路径见第 3 篇
+# 8.x 默认开启(TLS+认证);实验/内网基线显式关闭,代价与开启路径见第 2 篇
 xpack.security.enabled: false
 
 # ---------- 内存锁定(联动宿主前置,见部署篇) ----------

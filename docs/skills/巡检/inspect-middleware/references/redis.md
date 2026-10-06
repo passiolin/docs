@@ -1,7 +1,7 @@
 # Redis 巡检(inspect-middleware / redis)
 
 > **实测状态**:✅ 已实测 —— Redis 8.0.5(Ubuntu 26.04 打包版,2026-09-30),单机模式;INFO 各段输出已验证可解析。两条实测教训已写入阈值:**碎片率必须加 used_memory 前置条件**(小实例碎片率必然虚高)、**默认 maxmemory=0 且 noeviction**。
-> **哨兵/集群实测补充(2026-10-01,docker 三节点)**:R11 的哨兵口径(含 num-other-sentinels 验收)、集群形态输出、exporter 实测指标名均已回填,部署细节见 [部署相关/redis](../../../部署相关/redis/README.md)。
+> **哨兵/集群实测补充(2026-10-01,docker 三节点)**:R11 的哨兵口径(含 num-other-sentinels 验收)、集群形态输出、exporter 实测指标名均已回填,部署细节见 [部署相关/redis](../../../../部署相关/redis/README.md)。
 
 ## 定位与依赖
 

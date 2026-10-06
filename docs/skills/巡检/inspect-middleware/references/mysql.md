@@ -1,7 +1,7 @@
 # MySQL 巡检(inspect-middleware / mysql)
 
 > **实测状态**:✅ 已实测 —— MySQL 8.4.11(Ubuntu 26.04 打包版,2026-09-30),单机模式;命令输出均已验证可解析。主从/集群相关项的输出格式以 8.4 语法(`SHOW REPLICA STATUS`)为准,8.0.22 之前为 `SHOW SLAVE STATUS`。
-> **MGR 实测补充(2026-09-30)**:M06 的 MGR 部分、M11 的漂移检查在 docker 三节点 MGR 环境(部署文档见 [部署相关/mysql](../../../部署相关/mysql/README.md))实测通过。
+> **MGR 实测补充(2026-09-30)**:M06 的 MGR 部分、M11 的漂移检查在 docker 三节点 MGR 环境(部署文档见 [部署相关/mysql](../../../../部署相关/mysql/README.md))实测通过。
 
 ## 定位与依赖
 
@@ -22,7 +22,7 @@
 | M07 | binlog 与磁盘 | 命令 | binlog 空间失控增长 P2 | expire_logs_days/binlog 过期策略 |
 | M08 | 缓冲池命中率 | 命令 | <95% P2 / <90% P1(样本充足时) | 评估 buffer pool 扩容 |
 | M09 | 数据容量 | 命令 | 增速异常 P2(联动写满预测) | 大表归档/清理;查询前 `SET SESSION information_schema_stats_expiry=0`(8.0+ 统计缓存 86400s,实测旧值可差一倍) |
-| M10 | 错误日志 | 彙令 | 有 ERROR 级新增 P1 | 逐条甄别,锁等待/损坏类升 P0 |
+| M10 | 错误日志 | 命令 | 有 ERROR 级新增 P1 | 逐条甄别,锁等待/损坏类升 P0 |
 | M11 | 关键配置基线 | 命令 | max_connections=151 默认值在生产 P2;**配置漂移 P2** | 按容量规划调整;漂移处置见下 |
 
 ## 检查命令明细

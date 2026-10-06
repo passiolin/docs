@@ -7,7 +7,7 @@
 # ============================================================
 set -euo pipefail
 DIR=$(cd "$(dirname "$0")" && pwd)
-NAME=$1; OUT=$3
+NAME=$1; OUT=$2
 
 mkdir -p "$OUT"
 {

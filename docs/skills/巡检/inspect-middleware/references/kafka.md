@@ -1,7 +1,7 @@
 # Kafka 巡检(inspect-middleware / kafka)
 
 > **实测状态**:✅ 已实测 —— Kafka 4.3.1 KRaft 单机(standalone 格式化),Ubuntu 26.04 上的 JDK,2026-09-30;topic/lag/quorum 命令输出已验证。多 broker 相关项(ISR 收缩、分区分布、quorum 多数派)在单机上的输出形态已在条目内标注,集群环境按同口径推演。
-> **集群实测补充(2026-10-01,docker 三节点 KRaft)**:K04/K05/K06 的集群输出、ISR 收缩实测、K02 的 exporter 指标名均在 docker 集群(2 broker 在线形态)实测回填,部署细节见 [部署相关/kafka](../../../部署相关/kafka/README.md)。
+> **集群实测补充(2026-10-01,docker 三节点 KRaft)**:K04/K05/K06 的集群输出、ISR 收缩实测、K02 的 exporter 指标名均在 docker 集群(2 broker 在线形态)实测回填,部署细节见 [部署相关/kafka](../../../../部署相关/kafka/README.md)。
 
 ## 定位与依赖
 

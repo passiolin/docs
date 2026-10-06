@@ -1,7 +1,7 @@
 # ZooKeeper 巡检(inspect-middleware / zookeeper)
 
 > **实测状态**:✅ 已实测 —— ZooKeeper 3.9.5(Ubuntu 26.04 打包版 zookeeperd,2026-09-30),单机 standalone;四字命令(ruok/mntr/srvr)输出经 /dev/tcp 实测验证可解析。集群项(Z02 拓扑核对 / Z10 同步)以多节点输出为准,单机按 standalone 判定或跳过。
-> **集群与 docker 实测补充(2026-10-01)**:三节点 ensemble(官方 docker 镜像)实测回填 Z02 集群输出与杀 leader 切换;**docker 镜像的 admin server 行为与打包版相反(默认开放)**,见"版本差异与已知坑"。部署细节见 [部署相关/zookeeper](../../../部署相关/zookeeper/README.md)。
+> **集群与 docker 实测补充(2026-10-01)**:三节点 ensemble(官方 docker 镜像)实测回填 Z02 集群输出与杀 leader 切换;**docker 镜像的 admin server 行为与打包版相反(默认开放)**,见"版本差异与已知坑"。部署细节见 [部署相关/zookeeper](../../../../部署相关/zookeeper/README.md)。
 
 ## 定位与依赖
 
