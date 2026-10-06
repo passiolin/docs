@@ -1645,11 +1645,9 @@ async function onRouteChange() {
   let { path, anchor } = parseRoute();
 
   if (!path) {
-    // 无路由：优先记忆的位置 → DOC_ROOT 下的默认文件 → 根目录默认文件 → 第一个文件
-    const last = localStorage.getItem('mdv-last');
+    // 无路由：始终打开 DOC_ROOT 下的默认文件 → 根目录默认文件 → 第一个文件
     const inRoot = CONFIG.DOC_ROOT ? `${CONFIG.DOC_ROOT}/${CONFIG.DEFAULT_FILE}` : CONFIG.DEFAULT_FILE;
-    path = (last && state.files.includes(last)) ? last
-      : (state.files.includes(inRoot) ? inRoot
+    path = (state.files.includes(inRoot) ? inRoot
       : (state.files.includes(CONFIG.DEFAULT_FILE) ? CONFIG.DEFAULT_FILE : state.files[0]));
     if (!path) { renderNoDocs(); return; }
     history.replaceState(null, '', `#/${encodePath(path)}`);
@@ -1660,7 +1658,6 @@ async function onRouteChange() {
     if (hit) path = hit;
     else { renderError(path, new Error('文件不在目录中')); return; }
   }
-  localStorage.setItem('mdv-last', path);
   await loadFile(path, anchor);
   if (seq !== routeSeq) return;
 }
@@ -1780,7 +1777,6 @@ function bindEvents() {
     state.objectUrls.clear();
     document.body.classList.add('local-mode');
     buildTreeFromLocal();
-    localStorage.removeItem('mdv-last');
     location.hash = '#/';
     if (!location.hash) onRouteChange();
   });
