@@ -509,6 +509,10 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
 :root[data-theme="dark"] .mermaid-block .mmd-err-msg { color: #ff8787; }
 .mermaid-block .mmd-err-src { margin: 0; }
 .mermaid-block .mmd-err-src code { background: none; border: none; padding: 0; }
+.mermaid-block .mmd-loading {
+  margin: 0;
+  font-size: 13px; color: var(--text-3);
+}
 
 .markdown-body .file-meta { margin: -6px 0 18px; font-size: 12.5px; color: var(--text-3); }
 .markdown-body .file-code pre { margin: 0; max-height: 72vh; overflow: auto; }
@@ -1360,21 +1364,40 @@ async function copyText(text) {
 
 /* ==================================================================
  * Mermaid（按需加载：页面里出现图表才引入，无图表零开销）
+ * 加载顺序：jsdelivr → npmmirror（国内镜像）→ 本地 vendor 兜底
  * ================================================================== */
+const MERMAID_VERSION = '11.4.1';
+const MERMAID_SOURCES = [
+  `https://cdn.jsdelivr.net/npm/mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`,
+  `https://registry.npmmirror.com/mermaid/${MERMAID_VERSION}/files/dist/mermaid.min.js`,
+  'assets/vendor/mermaid.min.js',
+];
+
+function loadScript(src, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    const timer = timeoutMs ? setTimeout(() => { s.remove(); reject(new Error('加载超时')); }, timeoutMs) : null;
+    s.src = src;
+    s.onload = () => { clearTimeout(timer); resolve(); };
+    s.onerror = () => { clearTimeout(timer); s.remove(); reject(new Error('加载失败')); };
+    document.head.appendChild(s);
+  });
+}
+
 let mermaidReady = null;
 function ensureMermaid() {
   if (!mermaidReady) {
-    mermaidReady = new Promise((resolve, reject) => {
-      if (window.mermaid) return resolve();
-      if (window.__mdvNoMermaid) return reject(new Error('未找到 assets/vendor/mermaid.min.js'));
-      const s = document.createElement('script');
-      s.src = 'assets/vendor/mermaid.min.js';
-      s.onload = resolve;
-      s.onerror = () => { window.__mdvNoMermaid = true; reject(new Error('mermaid 库加载失败')); };
-      document.head.appendChild(s);
-    }).then(() => {
+    mermaidReady = (async () => {
+      if (!window.mermaid) {
+        for (let i = 0; i < MERMAID_SOURCES.length; i++) {
+          // 前面的 CDN 源限时换下一个；本地 vendor 是最后兜底，不限时
+          try { await loadScript(MERMAID_SOURCES[i], i < MERMAID_SOURCES.length - 1 ? 10000 : 0); } catch { continue; }
+          if (window.mermaid) break;
+        }
+        if (!window.mermaid) throw new Error('mermaid 库加载失败（CDN 与本地均不可用）');
+      }
       window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'default' });
-    });
+    })();
   }
   return mermaidReady;
 }
@@ -1383,6 +1406,12 @@ let mermaidSeq = 0;
 async function renderMermaidBlocks(scope) {
   const blocks = [...scope.querySelectorAll('.mermaid-block[data-source]')];
   if (!blocks.length) return;
+
+  // 尚未渲染的块先放加载占位，避免脚本下载期间留白
+  blocks.forEach((b) => {
+    if (!b.querySelector('svg') && !b.classList.contains('mermaid-error'))
+      b.innerHTML = '<p class="mmd-loading">图表加载中…</p>';
+  });
 
   let mermaid = null;
   try {
