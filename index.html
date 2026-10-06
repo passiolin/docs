@@ -669,8 +669,14 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
   </aside>
 </div>
 
-<script src="assets/vendor/marked.min.js"></script>
-<script src="assets/vendor/highlight.min.js"></script>
+<!-- marked v12.0.2：npmmirror → baomitu(360) → 本地兜底（同步回退，保证主脚本执行前就绪） -->
+<script src="https://registry.npmmirror.com/marked/12.0.2/files/marked.min.js"></script>
+<script>window.marked || document.write('<script src="https://lib.baomitu.com/marked/12.0.2/marked.min.js"><\/script>');</script>
+<script>window.marked || document.write('<script src="assets/vendor/marked.min.js"><\/script>');</script>
+<!-- highlight.js v11.9.0：npmmirror(cdn-assets) → jsdelivr → 本地兜底 -->
+<script src="https://registry.npmmirror.com/@highlightjs/cdn-assets/11.9.0/files/highlight.min.js"></script>
+<script>window.hljs || document.write('<script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/highlight.min.js"><\/script>');</script>
+<script>window.hljs || document.write('<script src="assets/vendor/highlight.min.js"><\/script>');</script>
 <script>
 'use strict';
 
@@ -1364,12 +1370,12 @@ async function copyText(text) {
 
 /* ==================================================================
  * Mermaid（按需加载：页面里出现图表才引入，无图表零开销）
- * 加载顺序：jsdelivr → npmmirror（国内镜像）→ 本地 vendor 兜底
+ * 加载顺序：npmmirror（国内镜像）→ jsdelivr → 本地 vendor 兜底
  * ================================================================== */
 const MERMAID_VERSION = '11.4.1';
 const MERMAID_SOURCES = [
-  `https://cdn.jsdelivr.net/npm/mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`,
   `https://registry.npmmirror.com/mermaid/${MERMAID_VERSION}/files/dist/mermaid.min.js`,
+  `https://cdn.jsdelivr.net/npm/mermaid@${MERMAID_VERSION}/dist/mermaid.min.js`,
   'assets/vendor/mermaid.min.js',
 ];
 
