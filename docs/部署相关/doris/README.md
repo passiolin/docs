@@ -48,7 +48,7 @@ Doris 前身是百度 2013 年前后的内部 OLAP 系统 Palo,动机很朴素:�
 | 二级索引 | 前缀索引/zone map/bloom/倒排(2.0) | 本文原理节 |
 | 高可用 | FE 多数派选主 + BE 副本自愈 | 第 4 篇 |
 | 在线扩缩容 | 加 BE 自动 tablet 再均衡 | 第 4 篇(实测) |
-| 湖仓一体 | 2.x 支持湖上查询 | 未实测,TODO |
+| 湖仓一体 | 2.x 支持湖上查询 | ✅ TVF S3() 直查实测(第 3 篇) |
 
 ### 使用速查
 
@@ -133,7 +133,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | DUPLICATE | 全保留 | 日志/事件明细(实测) | 聚合现算 |
 | AGGREGATE | 按 agg 函数归并 | 报表预聚合 | 明细丢失 |
-| UNIQUE | 新值覆盖旧值 | 维表/状态更新 | MoW 写放大 |
+| UNIQUE | 新值覆盖旧值 | 维表/状态更新 | MoW 写放大(✅ 实测 1902KB vs 明细 864KB,见下) |
 
 ```mermaid
 flowchart TB
@@ -184,8 +184,8 @@ sequenceDiagram
 | 在线扩容再均衡 | [第 4 篇](4.高可用与扩缩容.md):第三节点加入,tablet 自动再均衡 |
 | 单机形态 RF=1 | [第 1 篇](1.安装部署-单机.md):1FE+1BE 同机 |
 
-> ⚠️ **TODO(待服务器恢复实测)**:UNIQUE 模型 merge-on-write 的写放大与查询收益实测(对比 DUPLICATE 同数据集)。
-> ⚠️ **TODO(待服务器恢复实测)**:routine load 接 Kafka 与湖仓一体查询(第 3 篇候选,未实测)。
+> ✅ **UNIQUE MoW 写放大已实测**(2026-10-09):同构两表(3 桶 RF=2)各灌 10 万行后,u_mow 两轮更新 5 万键 / d_dup 两轮追加 5 万行(compaction score 仍 0,即压缩前状态):**MoW 10 万行占 1902KB,明细表 20 万行只占 864KB**——MoW 的写放大在 tablet 尺寸上直接可见(基线数据 + 增量 rowset + delete-bitmap 未合并),等价换查询免合并;"换写入放大"从一句话变成实测数字。
+> ✅ **routine load 接 Kafka 与湖仓查询已实测**(2026-10-09):routine load(JSON+jsonpaths)创建即 RUNNING、三批持续落库,默认从**创建时刻的分区末尾**消费(要回溯用 OFFSET_ZERO);湖仓查询走 TVF `S3()` 直查对象存储 CSV,10 万行对账一致 → [第 3 篇](3.数据导入与查询.md)。
 
 ## 资料索引
 

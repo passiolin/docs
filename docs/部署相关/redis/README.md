@@ -73,7 +73,7 @@ timeline
 | 高可用 | 异步复制、PSYNC2 部分重同步、哨兵自动 failover | — | [第 5 篇](5.主从与哨兵.md)18 秒切换 |
 | 水平扩展 | Cluster:16384 槽、MOVED/ASK、gossip | 3.0 | [第 6 篇](6.Cluster集群.md)杀主接管 |
 | 安全 | ACL 用户级命令与 key 模式授权 | 6.0 | [第 3 篇](3.账号与安全.md)最小权限 |
-| 性能 | 命令单线程 + 6.0 IO 线程;客户端缓存 tracking | 6.0 | 待压测(TODO) |
+| 性能 | 命令单线程 + 6.0 IO 线程;客户端缓存 tracking | 6.0 | ✅ 压测与 tracking 实测(见文末) |
 | 可编程 | 模块系统、Functions | 4.0 / 7.0 | 本套未覆盖 |
 
 ### 使用速查
@@ -97,7 +97,7 @@ timeline
 | `appendfsync` | AOF 刷盘策略 always / everysec / no | 基线 everysec(丢失窗口 ≤1s) |
 | `aof-use-rdb-preamble` | 混合持久化(AOF base 以 RDB 开头) | 第 4 篇实测 base 即 RDB 开头 |
 | `hash-max-listpack-entries` | hash 编码切换阈值 | 8.x 默认 128,以配置为准 |
-| `io-threads` | IO 线程数(命令执行仍单线程) | 未开,见 TODO |
+| `io-threads` | IO 线程数(命令执行仍单线程) | 维持不开(2026-10-09 压测:4C/200 连接/4KB 下 -8%,见文末) |
 | `down-after-milliseconds` | 哨兵主观下线判定窗口 | 基线 5s |
 | `cluster-node-timeout` | 集群节点失联判定 | 基线 15s |
 
@@ -153,7 +153,7 @@ flowchart LR
 
 Redis 的核心承诺来自一个朴素决定:**所有命令在一个线程里串行执行**。收益:数据结构全免锁;单条命令天然原子(`INCR` 不需要任何额外同步);行为可预测,没有竞态类 bug。内存操作是纳秒级,CPU 很少是瓶颈,瓶颈通常在网络 IO 与系统调用——这是"单线程也不慢"的底气。
 
-但网络 IO 会先到顶:海量连接、大 value 时,read / 协议解析 / write 占用的 CPU 超过命令执行本身。6.0 起 Redis 引入 **io-threads**:网络读写与协议解析可分摊到多个 IO 线程并行处理,**命令执行仍然只在主线程串行**——只分形 IO 层、不动内核模型,无锁前提保持不变,`MULTI/EXEC` 语义照旧。所以 Redis 的"多线程"是 IO 层的、不是计算层的;是否开启、开几个线程对吞吐的影响见文末 TODO(io-threads 属于压测后再定的参数,不进基线)。
+但网络 IO 会先到顶:海量连接、大 value 时,read / 协议解析 / write 占用的 CPU 超过命令执行本身。6.0 起 Redis 引入 **io-threads**:网络读写与协议解析可分摊到多个 IO 线程并行处理,**命令执行仍然只在主线程串行**——只分形 IO 层、不动内核模型,无锁前提保持不变,`MULTI/EXEC` 语义照旧。所以 Redis 的"多线程"是 IO 层的、不是计算层的;是否开启、开几个线程对吞吐的影响已压测定论(2026-10-09:4C VM、200 连接、4KB value 下 io-threads=3 反而 -8%,49456 vs 53908 rps——连接数与 value 未到 IO 瓶颈时多线程只添争核,维持不进基线)。
 
 ```mermaid
 flowchart LR
@@ -251,9 +251,9 @@ sequenceDiagram
 
 待补实测:
 
-> ⚠️ **TODO(待服务器恢复实测)**:8.x 编码切换 OBSERVE——zset 元素数从 1 递增,`OBJECT ENCODING` 观察 listpack → skiplist 切换点,对照 `zset-max-listpack-entries` 配置值。
-> ⚠️ **TODO(待服务器恢复实测)**:io-threads 开启前后的 redis-benchmark 对比(大 value 与多连接两组场景),验证 IO 线程收益边界后再定是否进基线。
-> ⚠️ **TODO(待服务器恢复实测)**:客户端缓存 tracking(6.0+)的失效通知行为实测。
+> ✅ **编码切换已实测**(2026-10-09,8.0.6,`zset-max-listpack-entries=128`):逐个 ZADD 到 **128 元素(含)仍 listpack,第 129 个触发 skiplist**——精确贴着配置值;另一触发路径独立生效:单个元素超 `zset-max-listpack-value=64`(实测 100B),**2 个元素即切 skiplist**。判据:`OBJECT ENCODING`。
+> ✅ **io-threads 压测已实测**(2026-10-09,4C VM,redis-benchmark 200 连接 × 4KB × 10 万请求):基线 GET **53908 rps / p50 1.81ms**,`io-threads=3` 后 **49456 rps / p50 1.94ms(-8%)**——连接数与 value 尺寸未到 IO 瓶颈时,多 IO 线程在本机回环上反而争核,**维持不进基线**,上量(万级连接 / 大 value / 多核专用机)后重测。
+> ✅ **客户端缓存 tracking 已实测**(2026-10-09):A 客户端 `HELLO 3` + `CLIENT TRACKING ON` + `GET trk:k`,B 客户端 `SET trk:k` 后,A 连接收到 RESP3 push 原始字节 `>2 $10 invalidate *1 $5 trk:k`(即 `invalidate ["trk:k"]`)。**工具面发现:redis-cli 非 tty(管道/文件重定向)模式不渲染 push 消息**——验证 tracking 要么交互式终端,要么裸 TCP 读字节。
 
 ## 资料索引
 

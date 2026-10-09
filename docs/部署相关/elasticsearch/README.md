@@ -1,7 +1,7 @@
 # Elasticsearch 部署与运维(elasticsearch)
 
 > **版本基线**:Elasticsearch 8.19(实测 8.19.14,官方镜像 `elasticsearch:8.19.14`)。与巡检文档(8.19.14 deb)同版本;老 README 的 7.17 私有镜像形态已被本文取代。
-> **实测环境**:PVE 虚机 es-1/2/3(10.10.12.134/135/136,4C/8G,`--net=host`),2026-10-01。**三节点集群全链路实测**:部署(含 config 全量提取的坑)、索引/检索/分片分布、快照备份、杀节点容灾、集群健康 API。**安全基线:内网明文(xpack.security.enabled=false)**——开启 TLS/认证的路径与代价见第 2 篇"安全形态"。
+> **实测环境**:PVE 虚机 es-1/2/3(10.10.12.134/135/136,4C/8G,`--net=host`),2026-10-01。**三节点集群全链路实测**:部署(含 config 全量提取的坑)、索引/检索/分片分布、快照备份、杀节点容灾、集群健康 API。**安全基线:内网明文(xpack.security.enabled=false)**——TLS/认证形态已于 2026-10-09 实测走通并回退(路径与代价见第 2 篇"安全形态")。
 > **参数基线**:[conf/](conf/)(`elasticsearch.yml` 共享 + `gen-node-yml.sh` 注入 node.name + `jvm.options`)。
 
 ## 文章索引
@@ -163,11 +163,15 @@ flowchart LR
 | refresh=wait_for / 近实时 | [第 4 篇](4.索引与检索.md):单条立即可查,与默认 1s 的关系 |
 | 分片路由公式 | [第 4 篇](4.索引与检索.md):分片分布教科书式均衡,3 主各落一节点 |
 | 副本 failover 与自愈 | [第 6 篇](6.容灾实测.md):杀 es-3 后 yellow、检索可用、回归 green |
-| 快照一致性 | [第 5 篇](5.快照备份.md):fs 仓库全量快照 SUCCESS(恢复演练待办) |
+| 快照一致性 | [第 5 篇](5.快照备份.md):恢复演练通过(2026-10-09);fs 仓库非共享致断电禁用的教训同篇 |
 | initial_master_nodes 一次性 | [第 3 篇](3.参数基线与配置模板.md):"一次性火种"生产规范 |
 
-> ⚠️ **TODO(待服务器恢复实测)**:translog durability=request 与 async 的写入吞吐/恢复时长对比实测。
-> ⚠️ **TODO(待服务器恢复实测)**:快照恢复演练(条数对账 + 抽样值核对,第 5 篇待办)。
+> ✅ **translog durability=request vs async 已实测**(2026-10-09,ES 8.19.14,1 分片 0 副本、refresh 关闭):
+> - **逐条单条写** 100 条:request 2615ms vs async 1684ms——每条一次 fsync 约多付 9ms(VM 虚盘),高频单条写是 request 的代价面;
+> - **bulk 5000 条**:1083ms vs 1051ms——fsync 被 bulk 请求摊平,差距基本消失;**bulk 场景选 request 没有吞吐顾虑**;
+> - flush 后 translog 归零(`_stats/translog` operations=0)实测确认;async 的丢数据窗口 = sync_interval(默认 5s)内掉电;容器 SIGKILL **不丢**(OS 页缓存还在,只有宿主掉电才丢)——本环境无法模拟掉电,丢窗口按机制说明,未做破坏性验证;
+> - 恢复时长:translog 重放量取决于 flush 阈值(默认 512MB/默认间隔)而非 durability,两形态恢复路径相同。
+> ✅ **快照恢复演练已实测**(2026-10-09):rename 换名恢复 + 条数对账(9=9)+ 抽样核对通过,并带出 **fs 仓库必须共享存储**的断电教训 → [第 5 篇](5.快照备份.md)。
 
 ## 资料索引
 

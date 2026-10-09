@@ -45,10 +45,10 @@ timeline
 | znode 树 | 层级命名空间;持久/临时/顺序三类节点 | 第 4 篇 CRUD 实测 |
 | 线性一致读 | ZAB 提交后全局可见 | 第 4 篇 follower 立即可见 |
 | 临时节点 | 绑定会话,断连自动删除——注册/锁的基石 | 第 4 篇 ephemeral 实测 |
-| watcher 通知 | 数据变更推给订阅者 | 通用;persistent watch 待实测 |
+| watcher 通知 | 数据变更推给订阅者 | persistent watch 已实测(见下) |
 | ACL | digest 口令权限,按 znode 授权 | 通用(第 3 篇配置面) |
 | ensemble 高可用 | n 节点容忍 ⌊n/2⌋ 故障 | 第 5 篇杀 leader |
-| observer | 3.3 起,扩展读、不参与投票 | 待实测 |
+| observer | 3.3 起,扩展读、不参与投票 | 已实测(见下) |
 | 可观测 | mntr 指标 + 3.5 起 AdminServer HTTP | 第 1/5 篇 |
 
 ### 使用速查(zkCli 与四字命令)
@@ -130,7 +130,11 @@ sequenceDiagram
     Note over CL: watch 已消费(一次性),继续关心须重新注册
 ```
 
-> ⚠️ **TODO(待服务器恢复实测)**:persistent watch 实测——注册后连续变更,验证持续触发与移除语义。
+> ✅ **persistent watch 已实测**(2026-10-09,zkCli 管道会话,同一 `/pw` 节点):
+> - 一次性 `get -w /pw`:`set` 一次触发 `NodeDataChanged`(zxid …891),**第二次 set 无事件**——一次性语义实证;
+> - `addWatch -m PERSISTENT /pw`(默认 PERSISTENT_RECURSIVE):连续两次 set **各触发一次**(zxid …893/…894),注册-消费-再注册循环交给服务端;
+> - `removewatches /pw -a` 移除后 3.9 会推**专门的 `PersistentWatchRemoved` 事件**,此后 set 不再触发;
+> - 语法:`addWatch [-m mode] path`,mode ∈ PERSISTENT / PERSISTENT_RECURSIVE。
 
 #### 会话与临时节点
 
@@ -162,9 +166,17 @@ flowchart TB
     MIN --> Z5["zk-5"]
 ```
 
-> ⚠️ **TODO(待服务器恢复实测)**:observer 角色实测——加一台 observer,验证 Mode 为 observing、不进多数派计数。
+> ✅ **observer 角色已实测**(2026-10-09,第 4 台跑在 zk-1 机器上,clientPort 2182 / 选举 2889:3889):
+> - 静态老路:三节点 zoo.cfg 追加 `server.4=…:observer` + observer 自身 `peerType=observer`,**全量停启**后 `srvr` 显示 `Mode: observer`、mntr `zk_server_state: observer`;**leader 的 `zk_synced_followers` 保持 2**——不进多数派计数,读可扩展、写容错边界不变;
+> - 读写链路:经 2182 create(写转发给 leader)与 get 均正常;
+> - **实测坑**:observer 的 zoo.cfg 必须与 ensemble 同样开 `reconfigEnabled=true`(并 `standaloneEnabled=false`)——实测不配时 FLE 通知版本不匹配(observer 0 vs ensemble 400000000),选举永远重启,`not currently serving requests`。
 
-> ⚠️ **TODO(待服务器恢复实测)**:3.5 动态重配置(reconfig)加减节点实测,对比停机改 zoo.cfg 重启的老路。
+> ✅ **动态重配置 reconfig 已实测**(2026-10-09,与 observer 演练串做,老路 vs 新路对比鲜明):
+> - **老路**(上条 observer 静态加入):改 zoo.cfg → 全量停启,窗口内 ensemble 不可写;
+> - **新路**:三节点 zoo.cfg 配 `reconfigEnabled=true`(3.5.3 起默认关闭!)后,`reconfig -remove 4` / `reconfig -add server.4=10.10.12.131:2889:3889:observer;2182` **在线摘除与加回,全程无重启**,动态配置版本 400000000 → 600000007 推进可见(`config` / `get /zookeeper/config` 查看);
+> - **实测坑 1(必踩)**:reconfig 需要 ADMIN 权限,`/zookeeper/config` 默认 world 只读——报 `Insufficient permission`。解:服务端 JVM 加 `-Dzookeeper.DigestAuthenticationProvider.superDigest=super:<base64(sha1("super:super"))>`,客户端先 `addauth digest super:super` 再 reconfig(官方镜像默认不带,需重建容器注入 JVMFLAGS);
+> - **实测坑 2(工具面)**:zkCli 管道模式下**输出首行带 prompt 前缀**(`[zk: …] server.1=…`),`grep '^server\.'` 会漏掉第一台——过滤别锚定行首;
+> - 新路加 participant 同理:`reconfig -add server.1=…:2888:3888:participant;0.0.0.0:2181`(动态格式 clientPort 分号后置)。
 
 ### 与本文档集的衔接
 

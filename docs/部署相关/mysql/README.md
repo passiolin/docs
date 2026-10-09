@@ -124,7 +124,7 @@ InnoDB 里**表即索引**:整张表按主键组织成一棵聚簇 B+ 树,叶子
 
 这套原理在本文档集的落点:第 8 篇慢查询治理(执行计划与索引手段)、第 2 篇参数基线(buffer pool 尺寸要放得下热索引页)。
 
-> ⚠️ **TODO(待服务器恢复实测)**:同一查询"二级索引 + 回表"与"覆盖索引免回表"的 EXPLAIN 与 Handler 计数器对比,补一组 8.4 实测数据。
+> ✅ **回表 vs 覆盖索引已实测**(2026-10-09,8.4,20 万行表 / idx_name 命中 200 行):`EXPLAIN` 是第一判据——`SELECT val`(需回表)Extra 为 **NULL**,`SELECT id`(索引含主键)Extra 为 **Using index**;**实测发现:Handler 计数器两边完全相同**(read_key=1 / read_next=200)——回表发生在 InnoDB 引擎内部,Handler 层不计数,**判回表不能靠 Handler 计数器**,只能看 EXPLAIN Extra(或 performance_schema 的引擎内部分解)。
 
 #### 2. Buffer pool:改进版 LRU
 
@@ -191,7 +191,7 @@ binlog 是 Server 层逻辑日志,复制与基于时间点的恢复(PITR)都靠�
 
 从运维视角,复制链路上有两个可"换挡"的点:**格式挡**(ROW 的确定性 vs 日志体积)与**定位挡**(GTID 自动对齐 vs 文件位点)。第 4 篇演练的"物理全备 + binlog 点恢复",落点正是这套坐标体系;第 2 篇还把 binlog 保留期收紧到 7 天联动巡检 M07,磁盘按保留期预留。
 
-> ⚠️ **TODO(待服务器恢复实测)**:8.4 上 `binlog_format` 三个可选值的保留情况与切换行为(STATEMENT 是否已带弃用告警),补实测记录。
+> ✅ **binlog_format 三值已实测**(2026-10-09,8.4.11):默认 **ROW**;`SET GLOBAL binlog_format=STATEMENT/MIXED` **仍可用**(动态生效,无需重启),但**每次设置都报 Warning 1287 `'@@binlog_format' is deprecated and will be removed in a future release`**——三值尚未移除、弃用告警已实锤,新代码别再依赖 STATEMENT/MIXED,基线维持 ROW。
 
 #### 5. 两阶段提交:redo 与 binlog 对齐
 
@@ -254,7 +254,12 @@ flowchart TD
 
 读法建议:先读本节建立模型,再进编号文章看实测——上表每个"实测印证"都能在对应文章里找到命令与输出原文;反过来,排障遇到现象(克隆后自动重启失败、GTID 冲突被拒入组)先回本节找对应机制,再查第 8 篇字典。两份材料互为索引。
 
-> ⚠️ **TODO(待服务器恢复实测)**:8.4 半同步复制(semi-sync)搭建,以及异步 / 半同步 / MGR 三形态的 RPO 对比——本文档集目前只实测了 MGR 形态。
+> ✅ **半同步复制已实测,三形态 RPO 对比成立**(2026-10-09,mysql-1 为 source、mysql-2 临时摘出 MGR 做从库,演练后已克隆归队):
+> - **搭建**:source 装 `rpl_semi_sync_source`(semisync_source.so)、replica 装 `rpl_semi_sync_replica`,双方 `SET GLOBAL ..._enabled=1`,replica 重启复制通道握手;实测 `Rpl_semi_sync_source_clients=1`、`_status=ON`、`_yes_tx` 随事务累加;
+> - **半同步 ON:提交 89~92ms**(含网络 ACK);**杀从库:第一次提交阻塞 8430ms** 等 ACK 到超时(默认 10s),随后**自动退化为异步**(`_status=OFF`),后续提交 90ms——**"半同步超时后静默降级为异步"是它的隐藏行为,RPO=0 只在退化发生前成立**,监控必须盯 `_status` 与 `_timeouts`;
+> - **动态变量重启即失效**(replica 侧 `rpl_semi_sync_replica_enabled=1` 在 docker restart 后丢失,需重设或写 my.cnf);
+> - **RPO 三形态实测结论**:异步=主库提交不等副本,断开窗口内主 15 行/从 13 行(丢窗口=复制延迟);半同步=ACK 前不返回客户端(RPO=0),但超时静默退化是缺口;MGR=多数派认证提交(RPO=0,无静默降级,第 5 篇)。**要 RPO=0 且不伪装:MGR 或 GTID+半同步+告警盯退化**。
+> - 经典复制两个实测坑:复制账号走 `caching_sha2_password` 必须 `CHANGE REPLICATION SOURCE ... GET_SOURCE_PUBLIC_KEY=1`(否则 "Authentication requires secure connection");116 归队 MGR 时 `RESET REPLICA ALL` 会**连 group_replication_recovery 通道凭据一起清掉**,重入组前要重新 `CHANGE REPLICATION SOURCE ... FOR CHANNEL 'group_replication_recovery'`。
 
 ## 资料索引(官方与工具文档)
 

@@ -1,7 +1,7 @@
 # Kafka 部署与运维(kafka)
 
 > **版本基线**:Kafka 4.3(实测 4.3.1,官方镜像 `apache/kafka:4.3.1`,**KRaft 模式,无 ZooKeeper 依赖**)。与巡检文档(4.3.1)同版本。老 README 的 2.8.2 + ZooKeeper 形态已被本文取代。
-> **实测环境**:PVE 虚机 kafka-1/2(10.10.12.128/129,4C/4G,`--net=host`),2026-10-01。**实测覆盖**:KRaft 仲裁、topic/副本/ISR、生产消费与 offset/lag、杀 broker(Leader 迁移 + ISR 收缩 + 单副本可写 + 回归)、kafka_exporter(385 指标)。第三台(130)配置同型,实测当日其宿主 apt 锁未释放未能并入——三节点拓扑的参数与流程均已就绪,并入即生效。
+> **实测环境**:PVE 虚机 kafka-1/2/3(10.10.12.128/129/130,4C/4G,`--net=host`),2026-10-01。**实测覆盖**:KRaft 仲裁、topic/副本/ISR、生产消费与 offset/lag、杀 broker(Leader 迁移 + ISR 收缩 + 单副本可写 + 回归)、kafka_exporter(385 指标)。**kafka-3 于 2026-10-09 正式并入三节点**(此前该机残留单机实验集群与仲裁幽灵 voter,清理过程见第 2 篇),分区重分配/时间戳回溯/页缓存/协作式 rebalance 随之实测。
 > **参数基线**:[conf/](conf/) 双层 env(`kafka-common.env` 三台一致 + `gen-node-env.sh` 注入节点差异)。
 
 ## 文章索引
@@ -131,7 +131,7 @@ flowchart LR
     G1T -.->|"按时间戳查找走 .timeindex"| SCAN
 ```
 
-> ⚠️ **TODO(待服务器恢复实测)**:借 `.timeindex` 做按时间戳定位位移并回溯消费一轮。
+> ✅ **timeindex 按时间戳回溯已实测**(2026-10-09):三批消息分时刻写入(批A 0-199 / 批B 200-399 / 批C 400-599),`kafka-get-offsets.sh --time <epochMillis>` 把分界时刻精确换算到 **offset 200(批B 起点)**,按该位移消费到末尾恰好 400 条;`.timeindex` dump 可见稀疏条目(ts→offset:137/199/268/337/399/468/537)。**两个实测坑**:① 4.3.1 的 `kafka-console-consumer --offset` **只认 earliest/latest/数字**——网传的"直接传 datetime"姿势不存在,必须走 get-offsets 两步换算;② 指定位移消费必须同时给 `--partition`。
 
 #### KRaft:元数据即事件日志
 
@@ -175,7 +175,7 @@ flowchart LR
     PC --> SF
 ```
 
-> ⚠️ **TODO(待服务器恢复实测)**:页缓存命中率观测——对比冷/热 topic 消费的时延与磁盘读计数。
+> ✅ **页缓存命中已实测**(2026-10-09):200000×256B(≈50MB,RF=1)写入后,`drop_caches` 前后各消费一轮,dm-0 磁盘读增量**冷 162MB → 热 0MB**——热读全程命中页缓存,磁盘读计数是命中判定的硬证据。注意吞吐列受 CLI JVM 冷启动扰动(冷 17.4 vs 热 11.5 MB/s,方向都反了),**不能拿吞吐比命中率**;观测姿势:容器内 `kafka-consumer-perf-test` + 宿主 `/proc/diskstats` 扇区差分(LVM 设备在 diskstats 里叫 dm-0,不叫 mapper 名)。
 
 #### 消费者组与 rebalance
 
@@ -195,7 +195,10 @@ sequenceDiagram
     Note over C1,C2: 未迁移分区全程不暂停
 ```
 
-> ⚠️ **TODO(待服务器恢复实测)**:加/杀一个消费者,实录增量协作式 rebalance 的两轮收敛过程。
+> ✅ **增量协作式 rebalance 两轮收敛已实测**(2026-10-09,device-events 3 分区 + `CooperativeStickyAssignor` 两个 console consumer):
+> - T0:c1(c1-lab)独占 0/1/2;c2 加入后 **+4s 快照:c1 仍持有 0/1 且未停顿,仅分区 2 已归 c2**——增量协作式的签名画面(eager 此刻会让 c1 全量退出,describe 会出现全员空窗);
+> - +14s 收敛稳定为 c1(0,1)/ c2(2);再杀 c1,8s 内 c2 接管全部 0/1/2;
+> - 观测姿势:`kafka-consumer-groups --describe` 间隔快照对比 CONSUMER-ID 列(用 `client.id` 前缀区分成员);console consumer 默认日志级别抓不到协作式日志行,快照差分就是证据。另:4.3 启动时提示 **KIP-848 新消费再均衡协议(group.protocol=consumer)已生产可用**,新集群可评估,本基线仍用 classic + cooperative。
 
 ### 与本文档集的衔接
 
