@@ -201,29 +201,6 @@ a { color: inherit; text-decoration: none; }
 .tree-empty .cmd button { color: var(--accent); flex: none; font-size: 12px; }
 .tree-empty .cmd button:hover { text-decoration: underline; }
 
-.sidebar-foot {
-  padding: 10px 16px 14px;
-  border-top: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  font-size: 12px; color: var(--text-3);
-}
-.picker-btn {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 28px; padding: 0 10px;
-  border: 1px solid var(--border); border-radius: 8px;
-  font-size: 12px; color: var(--text-2); background: var(--bg);
-  transition: color .12s, border-color .12s;
-}
-.picker-btn:hover { color: var(--accent); border-color: var(--accent); }
-.picker-btn svg { width: 13px; height: 13px; }
-.mode-badge {
-  display: none;
-  padding: 2px 8px; border-radius: 999px;
-  background: var(--accent-soft); color: var(--accent);
-  font-size: 11px; font-weight: 550;
-}
-.local-mode .mode-badge { display: inline-block; }
-
 /* 搜索结果 */
 .search-results { display: none; flex: 1; overflow-y: auto; padding: 8px 10px 20px; }
 .searching .tree-wrap { display: none; }
@@ -647,18 +624,6 @@ h3:hover .heading-anchor, h4:hover .heading-anchor { opacity: 1; }
     <div class="tree-wrap" id="treeWrap"></div>
     <div class="search-results" id="searchResults"></div>
 
-    <div class="sidebar-foot">
-      <span class="mode-badge">本地模式</span>
-      <span id="footHint" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-      <button class="picker-btn" id="pickerBtn" title="选择一个文件夹作为文档库（无需服务）">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-             stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-        </svg>
-        打开文件夹
-      </button>
-      <input type="file" id="dirPicker" webkitdirectory multiple hidden>
-    </div>
   </aside>
   <div class="scrim" id="scrim"></div>
 
@@ -834,14 +799,12 @@ const state = {
   tree: null,               // 目录树根节点
   files: [],                // 扁平文件列表（展示顺序）
   currentPath: null,
-  localFiles: null,         // Map<path, File>（本地文件夹模式）
-  objectUrls: new Map(),    // Map<path, objectURL>（本地图片）
   searchIndex: null,        // Map<path, {title, text}>
   treeError: null,          // 目录扫描失败的原因（用于精确提示）
 };
 
 /* ==================================================================
- * 数据源：manifest.json → 服务端目录列表 → 本地文件夹
+ * 数据源：manifest.json → 服务端目录列表
  * ================================================================== */
 async function fetchText(url) {
   const res = await fetch(encodePath(url), { cache: 'no-store' });
@@ -853,7 +816,6 @@ async function fetchText(url) {
 
 async function loadTree() {
   state.treeError = null;
-  if (state.localFiles) { buildTreeFromLocal(); return; }
 
   // 1) manifest.json
   try {
@@ -864,7 +826,6 @@ async function loadTree() {
       state.files = [];
       flatten(state.tree);
       renderTree();
-      $('footHint').textContent = 'manifest 模式';
       return;
     }
   } catch { /* 继续尝试目录列表 */ }
@@ -880,7 +841,6 @@ async function loadTree() {
       if (state.files.length) {
         state.treeError = null;
         renderTree();
-        $('footHint').textContent = '目录列表模式';
         return;
       }
       listErr = { kind: 'empty' };
@@ -939,48 +899,6 @@ async function walkListing(dir) {
   node.children = sortNodes(node.children);
   flatten(node);
   return node;
-}
-
-/* 本地文件夹模式 */
-function buildTreeFromLocal() {
-  state.tree = { type: 'dir', name: CONFIG.SITE_TITLE, path: '', children: [] };
-  state.files = [];
-  const dirMap = new Map([['', state.tree]]);
-  const paths = [...state.localFiles.keys()].sort(collator.compare);
-
-  for (const full of paths) {
-    const segs = full.split('/');
-    const file = segs.pop();
-    let parentPath = '';
-    for (const seg of segs) {
-      const p = parentPath ? parentPath + '/' + seg : seg;
-      if (!dirMap.has(p)) {
-        const n = { type: 'dir', name: seg, path: p, children: [] };
-        dirMap.set(p, n);
-        dirMap.get(parentPath).children.push(n);
-      }
-      parentPath = p;
-    }
-    dirMap.get(parentPath).children.push({ type: 'file', name: file, path: full });
-  }
-  const prune = (n) => {
-    if (n.type === 'file') return true;
-    n.children = n.children.filter(prune);
-    sortNodes(n.children);
-    return n.children.length > 0 || n.path === '';
-  };
-  prune(state.tree);
-  flatten(state.tree);
-  renderTree();
-}
-
-async function getFileText(path) {
-  if (state.localFiles) {
-    const f = state.localFiles.get(path);
-    if (!f) throw new Error('未找到文件: ' + path);
-    return f.text();
-  }
-  return fetchText(path);
 }
 
 /* ==================================================================
@@ -1047,21 +965,19 @@ function renderTreeEmpty(reason = {}) {
       ${cmdRow(NGINX_SNIPPET, 'copyNginx', true)}`;
   } else if (reason.kind === 'shadowed') {
     head = `<strong>根目录的列表被 index.html 占用</strong><br>
-      把文章放进子目录并设置 <code>CONFIG.DOC_ROOT</code>，或任选下面一种方式：`;
+      把文章放进子目录并设置 <code>CONFIG.DOC_ROOT</code>；`;
   } else if (reason.kind === 'missing') {
     head = `<strong>找不到目录 ${escapeHtml(CONFIG.DOC_ROOT)}</strong><br>
-      检查 <code>CONFIG.DOC_ROOT</code> 与实际目录是否一致，或任选下面一种方式：`;
+      检查 <code>CONFIG.DOC_ROOT</code> 与实际目录是否一致；`;
   } else {
-    head = `<strong>无法自动读取目录</strong><br>任选一种方式：`;
+    head = `<strong>无法自动读取目录</strong>`;
   }
 
   $('treeWrap').innerHTML = `
     <div class="tree-empty">
       ${head}<br>
-      ① 生成目录索引文件后刷新（以后每次增删文档重新执行一遍）：<br>
+      也可以生成目录索引（以后每次增删文档重新执行一遍）：<br>
       ${cmdRow('python3 build-manifest.py', 'copyCmd')}
-      ② 无需任何服务，直接
-      <button class="picker-btn" id="emptyPicker" style="height:26px">选择本地文件夹</button>
     </div>`;
 
   const bind = (id, text) => $(id)?.addEventListener('click', async (e) => {
@@ -1070,7 +986,6 @@ function renderTreeEmpty(reason = {}) {
   });
   bind('copyCmd', 'python3 build-manifest.py');
   bind('copyNginx', NGINX_SNIPPET);
-  $('emptyPicker')?.addEventListener('click', () => $('dirPicker').click());
 }
 
 function highlightActiveRow() {
@@ -1139,7 +1054,7 @@ async function loadFile(path, anchor) {
 
   try {
     if (/\.md$/i.test(path)) {
-      const md = await getFileText(path);
+      const md = await fetchText(path);
       if (state.currentPath !== path) return; // 已切到别的页面
       content.innerHTML = marked.parse(md);
       postProcess(content, path);
@@ -1166,7 +1081,7 @@ async function loadFile(path, anchor) {
 const TEXT_SIZE_LIMIT = 800000; // 超长文本（日志等）截断展示
 async function loadTextFile(path) {
   const { label, lang } = langForFile(path);
-  let text = await getFileText(path);
+  let text = await fetchText(path);
   if (state.currentPath !== path) return;
   let truncated = false;
   if (text.length > TEXT_SIZE_LIMIT) {
@@ -1208,15 +1123,7 @@ async function loadTextFile(path) {
 /* 图片：直接预览 */
 async function loadImageFile(path) {
   const { label } = langForFile(path);
-  let src;
-  if (state.localFiles) {
-    const f = state.localFiles.get(path);
-    if (!f) throw new Error('未找到文件: ' + path);
-    src = state.objectUrls.get(path) || URL.createObjectURL(f);
-    state.objectUrls.set(path, src);
-  } else {
-    src = encodePath(path);
-  }
+  const src = encodePath(path);
 
   const content = $('content');
   content.innerHTML = `
@@ -1241,13 +1148,7 @@ async function loadImageFile(path) {
 /* 二进制等无法预览的类型：提供打开 / 下载 */
 async function renderBinaryCard(path) {
   const name = baseName(path);
-  let href = encodePath(path);
-  if (state.localFiles) {
-    const f = state.localFiles.get(path);
-    if (!f) throw new Error('未找到文件: ' + path);
-    href = state.objectUrls.get(path) || URL.createObjectURL(f);
-    state.objectUrls.set(path, href);
-  }
+  const href = encodePath(path);
   const content = $('content');
   content.innerHTML = `
     <div class="error-panel">
@@ -1376,19 +1277,8 @@ function postProcess(root, filePath) {
     const src = img.getAttribute('src') || '';
     if (/^(https?:|data:)/i.test(src)) return;
     const target = resolvePath(dir, src);
-    if (state.localFiles) {
-      const f = state.localFiles.get(target);
-      if (f) {
-        let url = state.objectUrls.get(target);
-        if (!url) { url = URL.createObjectURL(f); state.objectUrls.set(target, url); }
-        img.src = url;
-        return;
-      }
-      swapImgMissing(img, src);
-    } else {
-      img.addEventListener('error', () => swapImgMissing(img, src), { once: true });
-      img.src = encodePath(target);
-    }
+    img.addEventListener('error', () => swapImgMissing(img, src), { once: true });
+    img.src = encodePath(target);
   });
 }
 
@@ -1824,7 +1714,7 @@ async function ensureSearchIndex() {
         index.set(p, { title: baseName(p), text: baseName(p) }); // 二进制不读内容，仅按文件名命中
         return;
       }
-      const text = await getFileText(p);
+      const text = await fetchText(p);
       const title = (text.match(/^#\s+(.+)$/m) || [])[1]?.trim() || baseName(p);
       index.set(p, { title, text });
     } catch { index.set(p, { title: baseName(p), text: '' }); }
@@ -1941,8 +1831,7 @@ function renderNoDocs() {
     <div class="error-panel">
       <div class="e-ico">📄</div>
       <h3>还没有找到任何 Markdown 文档</h3>
-      <p>把本页面放在你的 Markdown 根目录，或点击下方按钮选择一个文件夹。</p>
-      <button class="btn-primary" onclick="document.getElementById('dirPicker').click()">选择文档文件夹</button>
+      <p>把本页面放在你的 Markdown 根目录，或检查 CONFIG.DOC_ROOT 是否指向文章所在目录。</p>
     </div>`;
 }
 
@@ -1953,7 +1842,7 @@ function renderError(path, err) {
       <h3>文档无法打开</h3>
       <span class="e-file">${escapeHtml(path || '(未知路径)')}</span>
       <p>${escapeHtml(err.message || '加载失败')}。<br>
-      如果刚添加了新文件，请刷新页面；本地文件夹模式下请确认文件仍然存在。</p>
+      如果刚添加了新文件，请刷新页面后重试。</p>
       <button class="btn-primary" onclick="location.hash='#/'">回到首页</button>
     </div>`;
 }
@@ -2034,27 +1923,6 @@ function bindEvents() {
     }
   });
 
-  // 本地文件夹
-  $('pickerBtn').addEventListener('click', () => $('dirPicker').click());
-  $('dirPicker').addEventListener('change', async (e) => {
-    const map = new Map();
-    for (const f of e.target.files) {
-      if (f.webkitRelativePath) {
-        const rel = f.webkitRelativePath.split('/').slice(1).join('/');
-        if (rel && !isExcluded(rel) && !rel.split('/').some(isExcluded)) map.set(rel, f);
-      }
-    }
-    if (!map.size) { alert('所选文件夹里没有找到文档'); return; }
-    state.localFiles = map;
-    state.searchIndex = null;
-    state.objectUrls.forEach((u) => URL.revokeObjectURL(u));
-    state.objectUrls.clear();
-    document.body.classList.add('local-mode');
-    buildTreeFromLocal();
-    location.hash = '#/';
-    if (!location.hash) onRouteChange();
-  });
-
   $('tocBack').addEventListener('click', (e) => {
     e.preventDefault();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2070,9 +1938,8 @@ async function init() {
   initTheme();
   bindEvents();
 
-  const wasLocal = !!state.localFiles;
-  if (!wasLocal) await loadTree();
-  if (!state.tree || !state.files.length) { renderTreeEmpty(treeError); }
+  await loadTree();
+  if (!state.tree || !state.files.length) { renderTreeEmpty(state.treeError || {}); }
   await onRouteChange();
 }
 

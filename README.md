@@ -34,10 +34,6 @@ python3 build-manifest.py     # 生成 manifest.json（可选，仅这一步用�
 
 以后增删文档重新执行一次。不想用 python 的话，任何能产出同格式 `manifest.json` 的办法都行。
 
-### 方式三：免服务，直接选文件夹
-
-双击打开 `index.html`（`file://` 协议），点击左下角 **「打开文件夹」**，选择你的 Markdown 目录即可浏览——解析完全在浏览器本地完成，不上传任何数据。
-
 ## 功能
 
 | 功能 | 说明 |
@@ -90,7 +86,7 @@ const CONFIG = {
 ## 常见问题
 
 **双击 index.html 打开是空白 / 提示无法读取目录？**
-`file://` 下浏览器禁止 fetch。用「打开文件夹」按钮选择文档目录，或改用 nginx / 本地服务。
+`file://` 下浏览器禁止 fetch，查看器不支持这种方式；用 nginx 或本地 HTTP 服务托管。
 
 **新增文档没有出现在目录树里？**
 目录列表模式（nginx autoindex）下直接刷新页面；manifest 模式下重跑 `python3 build-manifest.py`。
