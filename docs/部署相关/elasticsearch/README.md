@@ -30,14 +30,14 @@
 ```mermaid
 timeline
     title Elasticsearch 版本史
-    1999-2000 : "Doug Cutting 创建 Lucene(纯 Java 倒排索引库)"
-    2004 : "Shay Banon 基于 Lucene 做 Compass 搜索框架"
-    2010 : "发布分布式版本 Elasticsearch"
-    2016 : "5.x,版本号开始与 Lucene 对齐"
-    2017 : "6.x"
-    2019 : "7.x:内置协调层,引入 cluster.initial_master_nodes"
-    2022 : "8.0:默认开启 TLS 与认证"
-    2024 : "8 月加入 AGPLv3,重回 OSI 开源认定"
+    1999-2000 : Doug Cutting 创建 Lucene(纯 Java 倒排索引库)
+    2004 : Shay Banon 基于 Lucene 做 Compass 搜索框架
+    2010 : 发布分布式版本 Elasticsearch
+    2016 : 5.x 版本号开始与 Lucene 对齐
+    2017 : 6.x
+    2019 : 7.x 内置协调层,引入 cluster.initial_master_nodes
+    2022 : 8.0 默认开启 TLS 与认证
+    2024 : 8 月加入 AGPLv3,重回 OSI 开源认定
 ```
 
 检索的第一性问题:不遍历全部文档,怎么找到"含某词的文档"?单机把这件事做到极致的是 Lucene——Doug Cutting 于 1999/2000 年创建(以作者之子的中间名命名),纯 Java 倒排索引库,至今仍是 ES 的存储引擎底座。但 Lucene 只管单机:索引分片、副本容灾、跨节点归并这些"集群活"它不管。2004 年 Shay Banon 基于 Lucene 做出 Compass 搜索框架,2010 年发布分布式版本 Elasticsearch,把"Lucene 分片 + REST API + 近实时"打包成开箱即用的集群——"搜"从一个自建工程变成下载即用的产品。
