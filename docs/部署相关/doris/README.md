@@ -1,8 +1,8 @@
 # Doris 部署与运维(doris)
 
-> **版本基线**:Apache Doris 2.1.7(官方镜像 `apache/doris:fe-2.1.7` / `be-2.1.7`,2.1 LTS 线)。
-> **实测环境**:PVE 虚机 doris-1/2/3(10.10.12.124/125/126,4C/8G/100G,Ubuntu 26.04,docker),2026-09-30。**3 FE + 3 BE 全链路实测**:部署、三大宿主前置、建表、Stream Load(10 万行)、杀 BE 副本容灾、FE 多数派与选举、在线扩容、metrics。
-> **定位**:实时 OLAP 数仓(MPP 架构,FE 元数据/规划 + BE 存储/计算),MySQL 协议接入。生产参考:我们 StarRocks 同源架构的实验田。
+> - **版本基线**:Apache Doris 2.1.7(官方镜像 `apache/doris:fe-2.1.7` / `be-2.1.7`,2.1 LTS 线)。
+> - **实测环境**:PVE 虚机 doris-1/2/3(10.10.12.124/125/126,4C/8G/100G,Ubuntu 26.04,docker),2026-09-30。**3 FE + 3 BE 全链路实测**:部署、三大宿主前置、建表、Stream Load(10 万行)、杀 BE 副本容灾、FE 多数派与选举、在线扩容、metrics。
+> - **定位**:实时 OLAP 数仓(MPP 架构,FE 元数据/规划 + BE 存储/计算),MySQL 协议接入。生产参考:我们 StarRocks 同源架构的实验田。
 
 ## 文章索引
 

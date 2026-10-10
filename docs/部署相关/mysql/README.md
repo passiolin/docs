@@ -1,8 +1,8 @@
 # MySQL 部署与运维(mysql)
 
-> **版本基线**:MySQL 8.4(实测 8.4.11,官方 docker 镜像 `mysql:8.4`)。**其他版本(5.7 / 8.0 / 9.x)一律不覆盖**,不做版本差异表,不写跨大版本升级。
-> **实测环境**:PVE 虚机 3 台(4C / 8G / 100G 盘),Ubuntu 26.04 LTS,docker 29.1.3(Ubuntu 仓库 `docker.io` 包),2026-09-30。**所有命令与输出均来自该环境实测**,未经实测的内容会明确标注。
-> **部署形态**:docker 单机 → 三台 docker 组 MGR → MySQL Router 访问层。参数以 [conf/](conf/) 三层模板管理(`common` + `role-standalone` / `role-mgr`)。
+> - **版本基线**:MySQL 8.4(实测 8.4.11,官方 docker 镜像 `mysql:8.4`)。**其他版本(5.7 / 8.0 / 9.x)一律不覆盖**,不做版本差异表,不写跨大版本升级。
+> - **实测环境**:PVE 虚机 3 台(4C / 8G / 100G 盘),Ubuntu 26.04 LTS,docker 29.1.3(Ubuntu 仓库 `docker.io` 包),2026-09-30。**所有命令与输出均来自该环境实测**,未经实测的内容会明确标注。
+> - **部署形态**:docker 单机 → 三台 docker 组 MGR → MySQL Router 访问层。参数以 [conf/](conf/) 三层模板管理(`common` + `role-standalone` / `role-mgr`)。
 
 ## 文章索引
 

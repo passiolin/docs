@@ -1,8 +1,8 @@
 # Valkey 部署与选型(valkey)
 
-> **版本基线**:Valkey 8.1(实测 8.1.10,官方 docker 镜像 `valkey/valkey:8.1`;其对外协议兼容层报告 `redis_version:7.2.4`)。
-> **实测环境**:PVE 虚机 valkey-1/2/3(10.10.12.121/122/123,2C/4G,Ubuntu 26.04,docker),2026-09-30,另借 redis-1(118,Redis 8.0.6)做跨软件互操作。
-> **定位**:Valkey 是 Redis 2024 年改许可证后由 Linux 基金会托管的开源(BSD)分叉。本文档集**不重复 Redis 通用运维**(单机/哨兵/Cluster/监控全套见 [../redis/](../redis/README.md)),只覆盖:部署差异、**与 Redis 的兼容性实测矩阵**、以及**迁移路径实测**。
+> - **版本基线**:Valkey 8.1(实测 8.1.10,官方 docker 镜像 `valkey/valkey:8.1`;其对外协议兼容层报告 `redis_version:7.2.4`)。
+> - **实测环境**:PVE 虚机 valkey-1/2/3(10.10.12.121/122/123,2C/4G,Ubuntu 26.04,docker),2026-09-30,另借 redis-1(118,Redis 8.0.6)做跨软件互操作。
+> - **定位**:Valkey 是 Redis 2024 年改许可证后由 Linux 基金会托管的开源(BSD)分叉。本文档集**不重复 Redis 通用运维**(单机/哨兵/Cluster/监控全套见 [../redis/](../redis/README.md)),只覆盖:部署差异、**与 Redis 的兼容性实测矩阵**、以及**迁移路径实测**。
 
 ## 文章索引
 

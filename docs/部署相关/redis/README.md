@@ -1,8 +1,8 @@
 # Redis 部署与运维(redis)
 
-> **版本基线**:Redis 8.0(实测 8.0.6,官方 docker 镜像 `redis:8.0`)。与巡检文档(实测 8.0.5 打包版)同一大版本;不覆盖 7.x 及以下差异。
-> **实测环境**:PVE 虚机 redis-1/2/3(10.10.12.118/119/127,2C/4G/60G,Ubuntu 26.04,docker 29.1.3),2026-09-30。**所有命令与输出均来自实测**:单机、ACL、持久化崩溃恢复、主从+哨兵(故障切换 18 秒)、三主三从 Cluster(杀主接管)、redis_exporter。
-> **参数基线**:以 [conf/](conf/) 分层模板管理(common + standalone/replica/sentinel/cluster 四种角色)。
+> - **版本基线**:Redis 8.0(实测 8.0.6,官方 docker 镜像 `redis:8.0`)。与巡检文档(实测 8.0.5 打包版)同一大版本;不覆盖 7.x 及以下差异。
+> - **实测环境**:PVE 虚机 redis-1/2/3(10.10.12.118/119/127,2C/4G/60G,Ubuntu 26.04,docker 29.1.3),2026-09-30。**所有命令与输出均来自实测**:单机、ACL、持久化崩溃恢复、主从+哨兵(故障切换 18 秒)、三主三从 Cluster(杀主接管)、redis_exporter。
+> - **参数基线**:以 [conf/](conf/) 分层模板管理(common + standalone/replica/sentinel/cluster 四种角色)。
 
 ## 文章索引
 

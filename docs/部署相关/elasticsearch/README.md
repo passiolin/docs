@@ -1,8 +1,8 @@
 # Elasticsearch 部署与运维(elasticsearch)
 
-> **版本基线**:Elasticsearch 8.19(实测 8.19.14,官方镜像 `elasticsearch:8.19.14`)。与巡检文档(8.19.14 deb)同版本;老 README 的 7.17 私有镜像形态已被本文取代。
-> **实测环境**:PVE 虚机 es-1/2/3(10.10.12.134/135/136,4C/8G,`--net=host`),2026-10-01。**三节点集群全链路实测**:部署(含 config 全量提取的坑)、索引/检索/分片分布、快照备份、杀节点容灾、集群健康 API。**安全基线:内网明文(xpack.security.enabled=false)**——TLS/认证形态已于 2026-10-09 实测走通并回退(路径与代价见第 2 篇"安全形态")。
-> **参数基线**:[conf/](conf/)(`elasticsearch.yml` 共享 + `gen-node-yml.sh` 注入 node.name + `jvm.options`)。
+> - **版本基线**:Elasticsearch 8.19(实测 8.19.14,官方镜像 `elasticsearch:8.19.14`)。与巡检文档(8.19.14 deb)同版本;老 README 的 7.17 私有镜像形态已被本文取代。
+> - **实测环境**:PVE 虚机 es-1/2/3(10.10.12.134/135/136,4C/8G,`--net=host`),2026-10-01。**三节点集群全链路实测**:部署(含 config 全量提取的坑)、索引/检索/分片分布、快照备份、杀节点容灾、集群健康 API。**安全基线:内网明文(xpack.security.enabled=false)**——TLS/认证形态已于 2026-10-09 实测走通并回退(路径与代价见第 2 篇"安全形态")。
+> - **参数基线**:[conf/](conf/)(`elasticsearch.yml` 共享 + `gen-node-yml.sh` 注入 node.name + `jvm.options`)。
 
 ## 文章索引
 

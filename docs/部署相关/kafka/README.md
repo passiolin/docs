@@ -1,8 +1,8 @@
 # Kafka 部署与运维(kafka)
 
-> **版本基线**:Kafka 4.3(实测 4.3.1,官方镜像 `apache/kafka:4.3.1`,**KRaft 模式,无 ZooKeeper 依赖**)。与巡检文档(4.3.1)同版本。老 README 的 2.8.2 + ZooKeeper 形态已被本文取代。
-> **实测环境**:PVE 虚机 kafka-1/2/3(10.10.12.128/129/130,4C/4G,`--net=host`),2026-10-01。**实测覆盖**:KRaft 仲裁、topic/副本/ISR、生产消费与 offset/lag、杀 broker(Leader 迁移 + ISR 收缩 + 单副本可写 + 回归)、kafka_exporter(385 指标)。**kafka-3 于 2026-10-09 正式并入三节点**(此前该机残留单机实验集群与仲裁幽灵 voter,清理过程见第 2 篇),分区重分配/时间戳回溯/页缓存/协作式 rebalance 随之实测。
-> **参数基线**:[conf/](conf/) 双层 env(`kafka-common.env` 三台一致 + `gen-node-env.sh` 注入节点差异)。
+> - **版本基线**:Kafka 4.3(实测 4.3.1,官方镜像 `apache/kafka:4.3.1`,**KRaft 模式,无 ZooKeeper 依赖**)。与巡检文档(4.3.1)同版本。老 README 的 2.8.2 + ZooKeeper 形态已被本文取代。
+> - **实测环境**:PVE 虚机 kafka-1/2/3(10.10.12.128/129/130,4C/4G,`--net=host`),2026-10-01。**实测覆盖**:KRaft 仲裁、topic/副本/ISR、生产消费与 offset/lag、杀 broker(Leader 迁移 + ISR 收缩 + 单副本可写 + 回归)、kafka_exporter(385 指标)。**kafka-3 于 2026-10-09 正式并入三节点**(此前该机残留单机实验集群与仲裁幽灵 voter,清理过程见第 2 篇),分区重分配/时间戳回溯/页缓存/协作式 rebalance 随之实测。
+> - **参数基线**:[conf/](conf/) 双层 env(`kafka-common.env` 三台一致 + `gen-node-env.sh` 注入节点差异)。
 
 ## 文章索引
 
