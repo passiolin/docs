@@ -222,4 +222,4 @@ sequenceDiagram
 
 ## 新增与修改
 
-同 MySQL 篇纪律:先实测再入文;参数唯一真源是 [conf/kafka-common.env](conf/kafka-common.env)。
+没在集群跑通的命令不进文档;env 口径以 [conf/kafka-common.env](conf/kafka-common.env) 为唯一真源。

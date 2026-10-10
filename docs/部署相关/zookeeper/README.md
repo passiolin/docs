@@ -199,4 +199,4 @@ flowchart TB
 
 ## 新增与修改
 
-同 MySQL 篇纪律:先实测再入文,头部标注实测版本与日期;参数基线唯一真源是 [conf/zoo.cfg](conf/zoo.cfg)。
+先实测后入文,版本与日期写进对应小节;参数基线唯一真源是 [conf/zoo.cfg](conf/zoo.cfg)。
