@@ -25,4 +25,4 @@
 
     CMD ["bash","elasticsearch"]
 
-    # docker build -f Dockerfile -t dev-mirrors.gsjhdev.top/component/elasticsearch:8.19.14 .
+    # docker build -f Dockerfile -t dev-mirrors.ipuff.online/component/elasticsearch:8.19.14 .
