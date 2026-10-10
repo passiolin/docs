@@ -33,7 +33,7 @@ description: Use when 巡检中间件健康状况:MySQL、Redis、Kafka、ZooKee
 | Filebeat | 8.19.14 | 8 项 | [references/filebeat.md](references/filebeat.md) |
 | Jenkins | 2.5xx LTS | 8 项 | [references/jenkins.md](references/jenkins.md) |
 
-合计 **100 项**;实测状态与各组件已知坑见各文档头部 blockquote 与"版本差异与已知坑"小节。
+合计 **100 项**;各组件已知坑见各文档"版本差异与已知坑"小节。
 
 ## 使用方式
 

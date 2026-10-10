@@ -1,15 +1,13 @@
 # Elasticsearch 巡检(inspect-middleware / elasticsearch)
 
-> **实测状态**:✅ 已实测 —— Elasticsearch 8.19.14(deb 包,Ubuntu 26.04,2026-09-30);部署坑已在实验机实测复现(见"版本差异与已知坑",本文档最有价值部分);API 探针(_cluster/health / _cat/nodes / _cat/indices)在启动完成后补测通过,实测输出见命令明细注释。
-> **docker 集群实测补充(2026-10-01,三节点 + 单机安全形态)**:三节点集群的 health/_cat/nodes 输出、杀节点 yellow 语义(ES01)、快照 SUCCESS 实测(ES11)、单机认证形态(401 口径)均已回填,部署细节见 [部署相关/elasticsearch](../../../../部署相关/elasticsearch/README.md)。
-
 ## 定位与依赖
 
 - 本机 `curl` 可达 9200 端口;**8.x deb 包默认开启 xpack.security(HTTP 层 TLS + 认证)**,探测需 `https://localhost:9200 -k -u <user>:<pass>`(或 `--cacert /etc/elasticsearch/certs/http_ca.crt`);本实验机已显式关闭安全,明文 `localhost:9200` 即可——两种形态的切换代价见"版本差异与已知坑"第 1 条;
 - 巡检账号具备集群只读权限(builtin monitor 角色);无凭据时标注数据缺失,不允许静默跳过;
 - **API 探针一律 `timeout 10` 包装**:高负载/恢复中的 ES 会限流或挂起 HTTP,**超时 ≠ 宕机**,判 P0 前必须复核 9200 端口与 `systemctl status elasticsearch` 进程;
 - 指标面可选:elasticsearch_exporter 接入后 ES01/ES04/ES05/ES06 可换算 PromQL,命令面用于落地核查与无 exporter 场景;
-- 多集群/多实例按"集群名+节点"分节报告(同 SKILL.md 报告要求);主机层(CPU/磁盘/网络)联动 inspect-server,本域只管组件自身。
+- 多集群/多实例按"集群名+节点"分节报告(同 SKILL.md 报告要求);主机层(CPU/磁盘/网络)联动 inspect-server,本域只管组件自身;
+- 部署(单机安全形态 / 三节点)细节见 [部署相关/elasticsearch](../../../../部署相关/elasticsearch/README.md)。
 
 ## 巡检项清单
 

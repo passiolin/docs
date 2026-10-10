@@ -1,10 +1,5 @@
 # Filebeat 巡检(inspect-middleware / filebeat)
 
-> **实测状态**:✅ 已实测 —— Filebeat 8.19.14(deb 包,Ubuntu 26.04,2026-09-30);`filebeat version` 与 `filebeat test config` 输出已验证:
-> - `filebeat version` → `filebeat version 8.19.14 (amd64), libbeat 8.19.14 ... built 2026-04-02`
-> - `filebeat test config -c /etc/filebeat/filebeat.yml` → `Config OK`
-> - deb 装完默认 systemd 服务未激活(`fb_service=inactive` 属预期,按环境启用)——FB01 判读时先区分"未启用"与"该跑没跑"
-
 ## 定位与依赖
 
 - 本机 `filebeat` CLI 可用(/usr/bin/filebeat);配置在 /etc/filebeat/filebeat.yml,数据目录(含 registry)在 /var/lib/filebeat/;

@@ -1,11 +1,9 @@
 # Nacos 巡检(inspect-middleware / nacos)
 
-> **实测状态**:✅ 部分实测 —— Nacos 2.5.1(tar 包 standalone,Ubuntu 26.04 + OpenJDK,2026-09-30)。已实测:`/nacos/v1/console/health/readiness` 返回 `200`,`/nacos/v1/ns/operator/metrics` 返回 `{"status":"UP"}`。**实测坑**:`/nacos/actuator/prometheus` 直接 curl 返回为空——2.x 默认鉴权,需 basic auth(nacos/nacos)或改配置暴露指标;未配置前指标面按"数据缺失"记录,不视为健康。存储为默认内嵌 Derby(application.properties 的 db.url 被注释);生产外置 MySQL 时 NC08 联动 mysql 域。
-
 ## 定位与依赖
 
 - 本机 curl 可达 8848(open API/控制台);2.x 客户端注册走 gRPC 9848(集群间 9849),连接类巡检依赖该端口;
-- 命令面为主(open API + 配置/日志文件核对),盲区命令一律 `timeout` 包装;指标面可选:prometheus 暴露需先过鉴权(见顶部实测坑);
+- 命令面为主(open API + 配置/日志文件核对),盲区命令一律 `timeout` 包装;指标面可选:`/nacos/actuator/prometheus` 直接 curl 返回为空——2.x 默认鉴权,需 basic auth(nacos/nacos)或改配置暴露,未配置前按"数据缺失"记录;
 - 部署形态敏感:standalone 可巡全部项;集群模式 NC01/NC02/NC08 需逐节点执行,并核对 `conf/cluster.conf` 成员清单;
 - 存储形态敏感:内嵌 Derby(默认)看 data 目录与日志;外置 MySQL 时 DB 侧异常联动 [mysql.md](mysql.md) 的 M01/M06;
 - console/config 类 API(NC04/NC05)2.x 默认要鉴权,无凭据记"数据缺失",不允许静默跳过。

@@ -1,13 +1,11 @@
 # Redis 巡检(inspect-middleware / redis)
 
-> **实测状态**:✅ 已实测 —— Redis 8.0.5(Ubuntu 26.04 打包版,2026-09-30),单机模式;INFO 各段输出已验证可解析。两条实测教训已写入阈值:**碎片率必须加 used_memory 前置条件**(小实例碎片率必然虚高)、**默认 maxmemory=0 且 noeviction**。
-> **哨兵/集群实测补充(2026-10-01,docker 三节点)**:R11 的哨兵口径(含 num-other-sentinels 验收)、集群形态输出、exporter 实测指标名均已回填,部署细节见 [部署相关/redis](../../../../部署相关/redis/README.md)。
-
 ## 定位与依赖
 
 - `redis-cli` 可达,巡检账号通过 ACL 或只读从库执行(`INFO`/`CONFIG GET` 为只读);
 - 指标面可选:redis_exporter 接入后各 INFO 项均有对应指标(实测 v1.66.0,451 个指标:redis_up / redis_memory_used_bytes / redis_memory_max_bytes / redis_connected_clients / redis_blocked_clients / redis_slowlog_length / redis_rdb_last_bgsave_status / redis_evicted_keys_total / redis_keyspace_hits_total / redis_master_link_up 等,与 R 系列一一对应);
-- 集群模式额外查 `CLUSTER INFO`(cluster_state:ok)与 `CLUSTER NODES` 的 fail 状态;哨兵形态核 `SENTINEL master` 的 num-slaves / num-other-sentinels(见 R11)。
+- 集群模式额外查 `CLUSTER INFO`(cluster_state:ok)与 `CLUSTER NODES` 的 fail 状态;哨兵形态核 `SENTINEL master` 的 num-slaves / num-other-sentinels(见 R11);
+- 部署(单机 / 主从哨兵 / Cluster)细节见 [部署相关/redis](../../../../部署相关/redis/README.md)。
 
 ## 巡检项清单
 

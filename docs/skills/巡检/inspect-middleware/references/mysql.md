@@ -1,13 +1,11 @@
 # MySQL 巡检(inspect-middleware / mysql)
 
-> **实测状态**:✅ 已实测 —— MySQL 8.4.11(Ubuntu 26.04 打包版,2026-09-30),单机模式;命令输出均已验证可解析。主从/集群相关项的输出格式以 8.4 语法(`SHOW REPLICA STATUS`)为准,8.0.22 之前为 `SHOW SLAVE STATUS`。
-> **MGR 实测补充(2026-09-30)**:M06 的 MGR 部分、M11 的漂移检查在 docker 三节点 MGR 环境(部署文档见 [部署相关/mysql](../../../../部署相关/mysql/README.md))实测通过。
-
 ## 定位与依赖
 
 - 本机 `mysqladmin` / `mysql` 客户端可用,巡检账号具备 PROCESS、REPLICATION CLIENT 权限(localhost root + auth_socket 即可);
 - 指标面可选:mysqld_exporter 接入后 M02/M03/M04/M08 可换算 PromQL;
-- 单机/主从/集群均可巡,集群(MGR/InnoDB Cluster)额外查 `performance_schema.replication_group_members`。
+- 单机/主从/集群均可巡,集群(MGR/InnoDB Cluster)额外查 `performance_schema.replication_group_members`;
+- 部署(单机 / docker 三节点 MGR)细节见 [部署相关/mysql](../../../../部署相关/mysql/README.md)。
 
 ## 巡检项清单
 

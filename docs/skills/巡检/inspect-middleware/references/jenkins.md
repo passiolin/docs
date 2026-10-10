@@ -1,12 +1,10 @@
 # Jenkins 巡检(inspect-middleware / jenkins)
 
-> **实测状态**:⚠️ 部分实测 —— Jenkins LTS 2.5xx(deb 包 + OpenJDK 21,Ubuntu 26.04,2026-09-30)。服务已部署、8080 端口已监听过,但实验机高负载下首启缓慢,登录页探针未在窗口内完成采样,J03 标注**待补实测**。**实测坑**:Ubuntu 26.04 默认 JVM 是 Java 25,Jenkins(war)以默认 Java 启动会反复崩溃(systemd restart 计数飙升、journal 报错);修复 = systemd override 指定 Java 21(`/etc/systemd/system/jenkins.service.d/java21.conf` 里 `Environment=JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` + `daemon-reload` + restart)。
-
 ## 定位与依赖
 
 - deb 包部署:systemd 单元 `jenkins.service`,JENKINS_HOME=/var/lib/jenkins,默认端口 8080;
 - 命令面为主(systemctl/journalctl/df/du);REST API 面需 **API token**(J05/J06/J07),无凭据记"数据缺失",不允许静默跳过;
-- Java 版本敏感:见顶部实测坑;巡检发现 restart 计数飙升先核对 JVM 再谈别的;
+- Java 版本敏感:Ubuntu 26.04 默认 Java 25 会拖垮 war 启动(见处置手册);巡检发现 restart 计数飙升先核对 JVM 再谈别的;
 - J08 备份 recency 属状态对账类,依赖备份台账(备份介质/目录);
 - 盲区命令一律 `timeout` 包装。
 
@@ -29,7 +27,7 @@
 
 ```bash
 systemctl is-active jenkins
-systemctl show jenkins -p NRestarts        # restart 计数飙升 → 先核对 Java 版本(顶部实测坑)
+systemctl show jenkins -p NRestarts        # restart 计数飙升 → 先核对 Java 版本(见处置手册)
 journalctl -u jenkins -n 50 --no-pager
 ```
 
@@ -87,7 +85,7 @@ find <备份目录> -type f -mtime -7 2>/dev/null | wc -l   # 0 = 近 7 天无�
 
 ## 处置手册(初步参考,未经本环境演练;处置须运维负责人指示)
 
-- **服务反复重启(先看 JVM 再谈别的)**:`journalctl -u jenkins` 见 JVM crash / UnsupportedClassVersionError 类报错时,先核对当前 JAVA_HOME——Ubuntu 26.04 默认 Java 25 会拖垮 war 启动;修复走 systemd override 指定 Java 21(顶部实测坑),`daemon-reload` + restart;其次查磁盘满(J04)与插件崩溃循环;
+- **服务反复重启(先看 JVM 再谈别的)**:`journalctl -u jenkins` 见 JVM crash / UnsupportedClassVersionError 类报错时,先核对当前 JAVA_HOME——Ubuntu 26.04 默认 Java 25 会拖垮 war 启动;修复 = systemd override 指定 Java 21(`/etc/systemd/system/jenkins.service.d/java21.conf` 里 `Environment=JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`),`daemon-reload` + restart;其次查磁盘满(J04)与插件崩溃循环;
 - **磁盘满(J04)**:先 `du` 定位,通常是 jobs/*/builds 构建历史与 workspace;清理前按各 job 的 discard/保留天数出清单,删除动作等负责人确认;thinBackup/归档走既有流程,勿直接 rm 大目录;
 - **队列堆积(J05)**:queue/api/json 看卡住 item 在等什么(agent/label/并发额度);长时间占 executor 的死锁构建先与业务方确认再 cancel;agent 不够则走扩容评估;
 - **agent 掉线(J06)**:核对 agent 侧进程/凭据/网络(联动 inspect-server);恢复后与构建失败记录交叉验证;

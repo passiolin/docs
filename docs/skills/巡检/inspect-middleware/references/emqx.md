@@ -1,7 +1,5 @@
 # EMQX 巡检(inspect-middleware / emqx)
 
-> **实测状态**:✅ 部分实测 —— EMQX 5.8.6(deb 包,Ubuntu 26.04,2026-09-30)。已实测:`emqx_ctl listeners`、`emqx_ctl broker metrics` 输出可解析(节选见命令明细)。**实测坑**:`emqx_ctl status` 直接执行报 `ERROR: More than one EMQX node found running ... Make sure environment variable EMQX_NODE__NAME is set`——5.8 即使单节点也可能要求显式指定节点名,须写 `EMQX_NODE__NAME=emqx@127.0.0.1 emqx_ctl status`;listeners/metrics 子命令不受影响。Dashboard 默认 18083(HTTPS),REST API 走 api-key。
-
 ## 定位与依赖
 
 - 本机可执行 `emqx_ctl`(deb 包装在 /usr/bin),巡检用户具备 sudo 或 emqx 组权限;

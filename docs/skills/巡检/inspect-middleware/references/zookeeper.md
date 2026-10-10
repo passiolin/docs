@@ -1,8 +1,5 @@
 # ZooKeeper 巡检(inspect-middleware / zookeeper)
 
-> **实测状态**:✅ 已实测 —— ZooKeeper 3.9.5(Ubuntu 26.04 打包版 zookeeperd,2026-09-30),单机 standalone;四字命令(ruok/mntr/srvr)输出经 /dev/tcp 实测验证可解析。集群项(Z02 拓扑核对 / Z10 同步)以多节点输出为准,单机按 standalone 判定或跳过。
-> **集群与 docker 实测补充(2026-10-01)**:三节点 ensemble(官方 docker 镜像)实测回填 Z02 集群输出与杀 leader 切换;**docker 镜像的 admin server 行为与打包版相反(默认开放)**,见"版本差异与已知坑"。部署细节见 [部署相关/zookeeper](../../../../部署相关/zookeeper/README.md)。
-
 ## 定位与依赖
 
 - 2181 客户端端口在巡检机可达;四字命令经 bash 内置 /dev/tcp 直发,无需 nc / zkCli 等额外客户端;
@@ -10,7 +7,8 @@
 - **Ubuntu zookeeperd 包默认放行 ruok/mntr/srvr 等四字命令(实测)**;自装或其他发行版若命令返回空,先查 zoo.cfg 的 `4lw.commands.whitelist`(官方默认仅放行 srvr);
 - 指标面可选:mntr 字段可经 zookeeper exporter 转 Prometheus(接入后 Z03/Z04/Z08 可换算 PromQL);
 - 集群巡检需持有全部节点清单,逐节点执行同一命令再汇总比对;
-- 实例标识遵循总入口约定:单机用连接串(IP:2181),集群用"集群名+节点",多实例按节点分节出报告。
+- 实例标识遵循总入口约定:单机用连接串(IP:2181),集群用"集群名+节点",多实例按节点分节出报告;
+- 部署(单机 standalone / 三节点 ensemble)细节见 [部署相关/zookeeper](../../../../部署相关/zookeeper/README.md)。
 
 ## 巡检项清单
 

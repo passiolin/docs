@@ -1,15 +1,13 @@
 # Kafka 巡检(inspect-middleware / kafka)
 
-> **实测状态**:✅ 已实测 —— Kafka 4.3.1 KRaft 单机(standalone 格式化),Ubuntu 26.04 上的 JDK,2026-09-30;topic/lag/quorum 命令输出已验证。多 broker 相关项(ISR 收缩、分区分布、quorum 多数派)在单机上的输出形态已在条目内标注,集群环境按同口径推演。
-> **集群实测补充(2026-10-01,docker 三节点 KRaft)**:K04/K05/K06 的集群输出、ISR 收缩实测、K02 的 exporter 指标名均在 docker 集群(2 broker 在线形态)实测回填,部署细节见 [部署相关/kafka](../../../../部署相关/kafka/README.md)。
-
 ## 定位与依赖
 
 - 本机 Kafka CLI 可用:`kafka-topics.sh`、`kafka-consumer-groups.sh`、`kafka-metadata-quorum.sh`、`kafka-log-dirs.sh`、`kafka-broker-api-versions.sh`、`kafka-configs.sh`;巡检只需只读;
 - **CLI 一律 `timeout 60` 包装**:CLI 是 JVM 进程,高负载机器上启动可能超 20 秒(见"版本差异与已知坑"),timeout 给不足会把慢启动误报成 broker 不可达;
 - 指标面可选:Kafka Exporter(`kafka_consumergroup_lag` 等)接入后 K02/K03/K08/K09 换算 PromQL;**生产环境 lag 监控走 exporter**,CLI 用于落地核查与无 exporter 场景;
 - K06 区分 KRaft(4.x 默认)与老 ZooKeeper 模式(3.x 及以前),命令分别给出;
-- 多集群/多实例按 bootstrap-server 连接串分节报告(同 SKILL.md 报告要求)。
+- 多集群/多实例按 bootstrap-server 连接串分节报告(同 SKILL.md 报告要求);
+- 部署(单机 / KRaft 三节点)细节见 [部署相关/kafka](../../../../部署相关/kafka/README.md)。
 
 ## 巡检项清单
 

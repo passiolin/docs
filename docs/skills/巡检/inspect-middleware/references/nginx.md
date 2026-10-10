@@ -1,7 +1,5 @@
 # Nginx 巡检(inspect-middleware / nginx)
 
-> **实测状态**:✅ 已实测 —— Nginx 1.28.3(Ubuntu 26.04 打包版,2026-09-30);stub_status 配置与输出、access.log/error.log 判读均已验证。两个已知坑:版本信息走 stderr(必须 `nginx -v 2>&1`);打包版只 include conf.d 与 sites-enabled(见"定位与依赖")。
-
 ## 定位与依赖
 
 - 本机 `nginx` CLI 可用,巡检账号可读 `/etc/nginx/` 配置与 `/var/log/nginx/` 日志;

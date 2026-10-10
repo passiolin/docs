@@ -90,7 +90,8 @@ flowchart LR
 本目录按文档站目录约定组织,同时可直接 symlink 为 ZCode skill 供 AI 调用:
 
 ```bash
-ln -s /home/passio/Codes/docs/docs/skills/巡检/inspect-server ~/.zcode/skills/inspect-server
+# 在仓库根目录下执行
+ln -s "$PWD/docs/skills/巡检/inspect-server" ~/.zcode/skills/inspect-server
 ```
 
 启用后,对 AI 说"巡检服务器"或让它"按 inspect-server 写巡检脚本"即可触发。
