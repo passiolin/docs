@@ -195,7 +195,7 @@ node_nf_conntrack_entries / node_nf_conntrack_entries_limit
 (time() - node_boot_time_seconds) / 3600 < 24
 ```
 
-**S14 时钟偏移**(漂移会引发证书校验失败、Kafka/ES 判主异常,不要轻视)
+**S14 时钟偏移**(漂移会引发证书校验失败、Kafka/ES 判主异常)
 
 ```promql
 abs(node_timex_offset_seconds)

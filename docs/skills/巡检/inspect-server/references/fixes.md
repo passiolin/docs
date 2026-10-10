@@ -234,7 +234,7 @@ systemctl show <unit> -p NRestarts     # 重启计数,判断是否在静默循�
 
 ### S31 补充:服务重启循环(同条目扩展场景)
 
-`NRestarts` 持续增长说明 `Restart=always` 在粉饰崩溃:先 `journalctl -u <unit>` 看退出原因(OOM?配置错?依赖不可用),修根因后再观察;不要直接把 Restart 关掉了事。
+`NRestarts` 持续增长说明 `Restart=always` 在掩盖崩溃:先 `journalctl -u <unit>` 看退出原因(OOM?配置错?依赖不可用),修根因后再观察;不要直接把 Restart 关掉了事。
 
 ## D. 安全与合规
 
