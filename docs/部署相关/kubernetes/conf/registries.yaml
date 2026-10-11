@@ -1,0 +1,48 @@
+# /etc/rancher/rke2/registries.yaml —— 每台节点(server 与 agent)都要有
+# 2026-10-10 实测:daocloud 为主源、kubesre 备源,calico/ingress 等系统镜像经此拉取
+# 改动后需 systemctl restart rke2-server(或 rke2-agent)生效
+mirrors:
+  docker.io:
+    endpoint:
+      - https://docker.m.daocloud.io
+      - https://dhub.kubesre.xyz
+  gcr.io:
+    endpoint:
+      - https://gcr.m.daocloud.io
+      - https://gcr.kubesre.xyz
+  ghcr.io:
+    endpoint:
+      - https://ghcr.m.daocloud.io
+      - https://ghcr.kubesre.xyz
+  k8s.gcr.io:
+    endpoint:
+      - https://k8s-gcr.m.daocloud.io
+      - https://k8s-gcr.kubesre.xyz
+  registry.k8s.io:
+    endpoint:
+      - https://k8s.m.daocloud.io
+      - https://k8s.kubesre.xyz
+  quay.io:
+    endpoint:
+      - https://quay.m.daocloud.io
+      - https://quay.kubesre.xyz
+  cr.l5d.io:
+    endpoint:
+      - https://l5d.m.daocloud.io
+      - https://l5d.kubesre.xyz
+  docker.elastic.co:
+    endpoint:
+      - https://elastic.m.daocloud.io
+      - https://elastic.kubesre.xyz
+  mcr.microsoft.com:
+    endpoint:
+      - https://mcr.m.daocloud.io
+      - https://mcr.kubesre.xyz
+# 接私有仓库(Harbor 等)时追加 configs 块:
+# configs:
+#   "harbor.example.com":
+#     auth:
+#       username: admin
+#       password: <PASSWORD>
+#     tls:
+#       ca_file: /etc/rancher/rke2/harbor-ca.pem   # 自签证书场景

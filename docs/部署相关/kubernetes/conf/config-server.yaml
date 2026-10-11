@@ -1,0 +1,18 @@
+# /etc/rancher/rke2/config.yaml —— server 节点
+# 单节点集群:只保留 tls-san 里的本机 IP,删掉 VIP 一行
+# 高可用集群:tls-san 同时列 VIP 与本机 IP,后续节点再加 server: 一行
+# token 生成:openssl rand -hex 24,全集群一致
+token: <TOKEN>
+cni: calico                     # RKE2 默认 canal(flannel+calico 策略);calico 实际以 tigera-operator 形态部署,组件在 calico-system 命名空间
+cluster-cidr: 10.42.0.0/16      # Pod 网段
+service-cidr: 10.43.0.0/16      # Service 网段
+tls-san:
+  - 10.10.12.140                # VIP;缺了它经 VIP 访问 API 时证书校验失败
+  - 10.10.12.141                # 本机 IP,各节点写自己的
+# server: https://10.10.12.140:9345   # 只有第 2 台起的 server 才写;经 VIP 注册,VIP 未起时先写首台 IP
+# etcd 内置快照默认每小时一次、保留 5 份,要改:
+# etcd-snapshot-schedule-cron: "0 */6 * * *"
+# etcd-snapshot-retention: 12
+# server 不跑业务负载时解开(实测 RKE2 v1.35 默认无任何污点):
+# node-taint:
+#   - "CriticalAddonsOnly=true:NoExecute"

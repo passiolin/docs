@@ -1,0 +1,9 @@
+# /etc/rancher/rke2/config.yaml —— agent(worker)节点
+# 实测:RKE2 的 server 加入必须写全 cni/网段(canal/calico 互删教训,见 ../7.容灾实测.md);
+# agent 不部署 CNI chart,写 server + token 即可
+server: https://10.10.12.140:9345
+token: <TOKEN>
+tls-san:
+  - 10.10.12.140
+node-label:
+  - "node-type=worker"

@@ -1,0 +1,16 @@
+# /etc/rancher/k3s/registries.yaml —— 与 RKE2 同格式,改后 systemctl restart k3s
+# 完整版见 ../kubernetes/conf/registries.yaml
+mirrors:
+  docker.io:
+    endpoint:
+      - https://docker.m.daocloud.io
+      - https://dhub.kubesre.xyz
+  ghcr.io:
+    endpoint:
+      - https://ghcr.m.daocloud.io
+  quay.io:
+    endpoint:
+      - https://quay.m.daocloud.io
+  registry.k8s.io:
+    endpoint:
+      - https://k8s.m.daocloud.io

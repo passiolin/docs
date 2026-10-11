@@ -1,0 +1,7 @@
+# /etc/rancher/k3s/config.yaml —— server 节点(HA 首台)
+# 单节点:去掉 cluster-init;后续 server:加 server: 一行指向首台或 VIP
+token: <TOKEN>                    # openssl rand -hex 24
+cluster-init: true                # 内嵌 etcd HA;单节点用 sqlite 时删掉此行
+flannel-backend: none             # 给 Calico 让位(全集群只能一个 CNI)
+disable-network-policy: true      # 策略交给 Calico
+# 集群网段默认 10.42.0.0/16(Pod)/10.43.0.0/16(Service),与 RKE2 默认相同
