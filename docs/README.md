@@ -59,6 +59,7 @@
 
 - 🖥 **虚拟化**：[PVE](部署相关/pve/README.md)，显卡直通（IOMMU/VFIO 全流程踩坑）、ZFS raidz1
 - 🌐 **软路由**：iKuai 虚拟机部署 + NAT/桥接组网、DNS 劫持
+- 🐧 **主机基线**：[Linux](部署相关/linux/README.md)，到手清单（换源/SSH 加固/防火墙）与内核调优，单机十万长连接实测、conntrack 截胡复盘
 - 🔗 **组网**：Tailscale 不走官方服务——自托管 [headscale + derper](部署相关/tailscale/README.md)；OpenVPN、WireGuard 异地组网
 - 📦 **自托管中间件**：[MySQL](部署相关/mysql/README.md)、[Redis/Valkey](部署相关/redis/README.md)、[Kafka](部署相关/kafka/README.md)、[Zookeeper](部署相关/zookeeper/README.md)、[Elasticsearch](部署相关/elasticsearch/README.md)，部署、备份、监控写成系列
 - 💾 **统一账号**：OpenLDAP 直通 NAS 登录

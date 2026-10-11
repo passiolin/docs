@@ -1,0 +1,149 @@
+# Linux 主机到手清单
+
+一台新 Ubuntu 机器(云主机、PVE 克隆的虚机都一样)到手后要做的初始化,按顺序执行完就可以装业务。清单里每条命令都在笔者的测试机上跑通:2026-10,PVE 克隆 VM 105(`linux-test`,10.10.12.105,克隆自模板 101),Ubuntu 26.04 LTS,内核 7.0.0-38-generic,4C/4G/40G。文中所有"出厂"值均为该机实测;与本文口径不同的环境(云镜像、22.04 及更老)处标注 TODO。
+
+| 篇目 | 状态 |
+| --- | --- |
+| [1.内核参数与百万连接](1.内核参数与百万连接.md) | 完成,含十万连接实测 |
+| 2.存储(磁盘/LVM/挂载参数/TRIM) | 规划中 |
+| 3.用户与权限(sudo/PAM/OpenLDAP) | 规划中 |
+| 4.网络(netplan/网卡/VLAN) | 规划中 |
+
+编号分配后不再改动,后续新篇按号续。
+
+## 一、更新与镜像源
+
+26.04 起源配置是 deb822 格式,在 `/etc/apt/sources.list.d/ubuntu.sources`,老的 `/etc/apt/sources.list` 只剩空壳。镜像源怎么换:改 `URIs:` 行,把 `http://archive.ubuntu.com/ubuntu/`(或官方 security 源 `http://security.ubuntu.com/ubuntu/`)替换成镜像站同一路径,例如清华 `http://mirrors.tuna.tsinghua.edu.cn/ubuntu/`:
+
+```bash
+sed -i 's|http://security.ubuntu.com/ubuntu/|http://mirrors.tuna.tsinghua.edu.cn/ubuntu/|' /etc/apt/sources.list.d/ubuntu.sources
+apt-get update && apt-get full-upgrade -y
+```
+
+实测:模板的主源已是清华,security 行还是官方源——**换源要两行都看**,只换主源的话安全更新仍走国外。补齐后 update 拉包 3.3 MB/s,full-upgrade 升了 202 个包并装出新内核(7.0.0-27 → 7.0.0-38),所以清单跑完要重启一次。
+
+顺手看一眼 `sources.list.d/` 里的第三方残留:笔者测试机上就有历史留下的 `nodesource.sources` 和 `ubuntu.sources.curtin.orig`,前者还在生效,不需要就删。
+
+## 二、时区与时间同步
+
+```bash
+timedatectl set-timezone Asia/Shanghai
+timedatectl          # 看 System clock synchronized: yes
+```
+
+时间不准砸穿的是 TLS 证书校验和 ES/ZK 这类分布式组件。这台 26.04 模板上实际接管同步的是 chrony(systemd-timesyncd 是 inactive),`systemctl is-active chrony systemd-timesyncd` 看一眼哪个在跑即可,出厂已在同步,通常不用动。
+
+## 三、账户与 SSH 加固
+
+先建人,再锁门,顺序反了会把自己锁在外面:
+
+```bash
+adduser --disabled-password --gecos "" deploy
+usermod -aG sudo deploy
+echo 'deploy:<强密码>' | chpasswd
+install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+cat /root/.ssh/authorized_keys >> /home/deploy/.ssh/authorized_keys
+chown deploy:deploy /home/deploy/.ssh/authorized_keys && chmod 600 /home/deploy/.ssh/authorized_keys
+```
+
+**新开一个会话确认 deploy 能登录、`sudo -S whoami` 输出 root,再做下一步。**
+
+锁门写在 `/etc/ssh/sshd_config.d/` 的 drop-in 里,不动主配置:
+
+```bash
+cat > /etc/ssh/sshd_config.d/10-hardening.conf <<CONF
+PermitRootLogin no
+PasswordAuthentication no
+CONF
+sshd -t && systemctl restart ssh
+```
+
+两个实测的坑:
+
+1. **cloud-init 的 50-cloud-init.conf 会压过你的加固文件**。sshd 配置按字典序展开、先到先得,实测出厂自带的 `50-cloud-init.conf` 里写着 `PasswordAuthentication yes`,排在后面的 `99-hardening.conf` 拦不住它(PermitRootLogin 因为只有一份在设,所以生效了——更迷惑)。动手前先 `ls /etc/ssh/sshd_config.d/`,有 cloud-init 文件就删掉或直接改它,加固文件名用 `10-` 打头。
+2. 改完用 `sshd -T | grep -E "^permitrootlogin|^passwordauthentication"` 看生效值,不看配置文件猜。
+
+验证:新会话 root 登录应被拒(`Permission denied`),密码路径应只剩 publickey(`ssh -o PubkeyAuthentication=no deploy@主机` 被拒)。
+
+## 四、防火墙与防爆破
+
+```bash
+ufw allow OpenSSH
+ufw --force enable        # --force 在子命令前面
+ufw status verbose
+```
+
+实测:`ufw enable --force` 直接报 Invalid syntax——`--force` 是全局选项,位置写错这条命令就废。开启后新开会话确认 SSH 还能进。云服务器再把厂商安全组配上,两层互为备份。
+
+防爆破装 fail2ban,26.04 装完即带 sshd jail 且自启:
+
+```bash
+apt-get install -y fail2ban
+fail2ban-client status sshd    # 确认 jail 在跑
+```
+
+## 五、swap 与日志限额
+
+**先查再建**——模板机大概率自带:这台实测有 `/swap.img` 3.8G,`swapon --show` 确认在用即可。没有的机器按下面创建(笔者在测试机上按此路径建了 256M 测试文件并回收,整条命令验证过):
+
+```bash
+fallocate -l 2G /swapfile && chmod 600 /swapfile
+mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+内存 2G 以下的机器把 swappiness 降到 10,写进 sysctl 文件(见[内核参数篇](1.内核参数与百万连接.md))。
+
+journald 默认不限磁盘用量,日志能吃满小盘:
+
+```bash
+sed -i 's/^#\?SystemMaxUse=.*/SystemMaxUse=500M/' /etc/systemd/journald.conf
+systemctl restart systemd-journald && journalctl --disk-usage
+```
+
+## 六、自动安全补丁与常用工具
+
+26.04 出厂已启用自动安全更新(`APT::Periodic::Unattended-Upgrade "1"` 且 `apt-daily-upgrade.timer` enabled),确认即可:
+
+```bash
+cat /etc/apt/apt.conf.d/20auto-upgrades
+systemctl is-enabled apt-daily-upgrade.timer
+```
+
+工具按需补齐。这台模板预装了 htop/tmux/jq/vim/git/rsync/lsof/chrony,缺的实测补装一遍无障碍:
+
+```bash
+apt-get install -y fail2ban conntrack ncdu iftop iotop
+```
+
+## 七、登录会话的文件描述符
+
+出厂的 SSH 会话 `ulimit -n` 是 soft 1024 / hard 524288,装个稍大的中间件都不够。写 `/etc/security/limits.conf`:
+
+```bash
+cat >> /etc/security/limits.conf <<CONF
+* soft nofile 65535
+* hard nofile 65535
+CONF
+```
+
+重新登录后 `ulimit -Sn` 应显示 65535(实测生效,sshd 的 PAM 链里带 `pam_limits.so`)。两个实测的坑:① 自带 `limits.conf` 的注释示例里就有 `nofile` 这个词,拿它 grep 判断"是否已配置"会误判,判断要针对具体行;② systemd 服务不吃这份文件,它的上限和天花板见[内核参数篇](1.内核参数与百万连接.md)第三节。
+
+## 八、收尾:重启复验
+
+清单全部跑完重启一次,逐项确认都还在:
+
+```bash
+timedatectl | grep -E "Time zone|synchronized"
+ufw status | head -1
+systemctl is-active fail2ban
+ulimit -Sn                      # 新会话里
+sysctl -n vm.swappiness
+```
+
+笔者测试机重启后全部保持。改 SSH 或防火墙后**永远先开新会话验证、再退旧会话**,这条纪律在第三节和第四节各触发过一次,值得为它多敲一行命令。
+
+## 相关阅读
+
+- 服务器日常健康检查(水位/时钟/登录安全):[巡检 skill](../../skills/巡检/inspect-server/SKILL.md)
+- 中间件对主机层的依赖(vm.max_map_count 之类):[ES 单机部署](../elasticsearch/1.安装部署-单机.md)、[Doris 单机部署](../doris/1.安装部署-单机.md)
