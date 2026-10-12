@@ -14,6 +14,7 @@ RKE2 之外的第二个发行版实测系列。背景与选型结论:**重状态
 | 2 | [安装部署-HA集群](2.安装部署-HA集群.md) | cluster-init 内嵌 etcd、kube-vip、加入流程 | ✅ 已实测 |
 | 3 | [Calico安装与网络验证](3.Calico安装与网络验证.md) | tigera-operator on k3s、NetworkPolicy 实测、封装与带宽 | ✅ 已实测(跨节点带宽待重测) |
 | 4 | [与RKE2对比](4.与RKE2对比.md) | 安装耗时/资源/组件差异/已知限制硬对照 | ✅ 已实测 |
+| 5 | [什么是ServiceLB](5.什么是ServiceLB.md) | svclb DaemonSet 机制、EXTERNAL-IP 来历、端口互斥根因、换 MetalLB 的时机 | ✅ 已实测(lbpool 待验证) |
 
 ## 实测先行结论(对比详见第 4 篇)
 
