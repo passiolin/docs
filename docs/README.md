@@ -64,4 +64,5 @@
 - 📦 **自托管中间件**：[MySQL](部署相关/mysql/README.md)、[Redis/Valkey](部署相关/redis/README.md)、[Kafka](部署相关/kafka/README.md)、[Zookeeper](部署相关/zookeeper/README.md)、[Elasticsearch](部署相关/elasticsearch/README.md)，部署、备份、监控写成系列
 - 💾 **统一账号**：OpenLDAP 直通 NAS 登录
 - 🤖 **本地大模型**：[llamacpp](部署相关/llamacpp/README.md) 部署笔记
+- 🚪 **AI 中转站**：[sub2api](部署相关/sub2api/README.md) 统一接入团队 AI 编程能力——模型分档口径（GLM/DeepSeek/MiMo/Kimi 走中转，Claude/Codex 自行开通报销）、docker-compose 部署与踩坑
 - 💻 **自研**：[jmqtt-broker](https://github.com/passiolin/jmqtt-broker)（[部署与调优笔记](部署相关/jmqtt/README.md)）
