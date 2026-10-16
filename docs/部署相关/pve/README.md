@@ -3,13 +3,14 @@
 > - **机器**:PVE 9.2.2(kernel 7.0.2-6-pve,OpenZFS 2.4.2-pve1),Xeon E5-2698B v3(32 线程),251G 内存。
 > - **负载画像**:39 个虚机——iKUAI 路由、2080Ti 直通工作站(131G 内存)、开发/远程机,以及 26 台停机待批的数据库 lab(mysql/kafka/doris/es/zk 全家桶)。
 > - **盘位现状(2026-10-10 盘点)**:nvme0 512G 系统盘(root + local-lvm,**90% 满**);nvme1 960G SK hynix = `/nvme` ext4,5 个活跃 VM 共 537G;sda 500G WD5000AAKX = `/hdd` ext4,vzdump 备份 + ISO + iKUAI 盘。
-> - **方案一句话**:4TB HGST 7K4000(二手)建单盘 ZFS 池收全部数据正本,nvme1 切 SLOG 128G + L2ARC 剩余(~766GiB)做加速件,旧 500G 收敛为纯备份盘;VM 盘走 qcow2-on-dataset 换 zstd 压缩,克隆日常走 PVE 原生,block cloning 留作备用。
+> - **方案一句话**:4TB HGST 7K4000(二手)建单盘 ZFS 池收全部数据正本,nvme1 切 SLOG 128G + L2ARC 剩余(~766GiB)做加速件,旧 500G 收敛为纯备份盘;VM 盘走 **raw-on-dataset + aio=threads**(qcow2 与 io_uring 在此池上有实测级性能罚),zstd 压缩照吃,克隆日常走 PVE 原生。
 
 ## 文章索引
 
 | 编号 | 文章 | 内容 |
 | --- | --- | --- |
 | 1 | [存储配置](1.存储配置.md) | 建池、数据集、SLOG/L2ARC 分区、storage.cfg、克隆与快照操作、巡检命令 |
+| 2 | [存储性能实测](2.存储性能实测.md) | tank(HDD+缓存)与 local-lvm(NVMe)的 fio 方法论、调优时间线、实测矩阵与踩坑清单 |
 
 ## 一、要解决的问题
 
@@ -24,28 +25,27 @@
 | 盘 | 角色 | 内容 |
 | --- | --- | --- |
 | nvme0 512G(不动) | 系统盘 | PVE + local-lvm,角色收缩为系统与临时 |
-| **4TB HGST 7K4000(新,二手)** | **tank:数据正本池** | VM 盘(qcow2)、ISO/模板、冷数据 |
+| **4TB HGST 7K4000(新,二手)** | **tank:数据正本池** | VM 盘(raw)、ISO/模板、冷数据 |
 | nvme1 894GiB SK hynix | tank 加速件 | SLOG 分区 128G + L2ARC 分区剩余 ~766GiB |
 | sda 500G WD5000AAKX | hdd:专用备份 | vzdump 备份(现有 260G 原地保留) |
 
 分工逻辑:正本落机械盘,热点落 NVMe,备份落最老的盘——备份是最不挑速度的负载,旧盘转岗继续用。底线:VM 正本与备份永远不同物理盘,单盘故障不会同时失去数据与其副本。
 
-## 三、备份(hdd 收敛)
+## 三、备份(落点待定)
 
-- iKUAI 盘在线迁入 tank 后,`/hdd` 存储定义删掉 images/rootdir,只留 `content backup`;
-- prune 从 keep-all=1 改为保留策略:keep-daily=7, keep-weekly=4, keep-monthly=3;
-- 现有 260G 备份(102,2026-10-09)原地不动。
+- 旧 500G 已随换盘离场,`/hdd` 存储定义与根分区残留目录待清理;现有备份(102 的 260G)已不在机内;
+- 备份落点是当前唯一待决策项:tank 上建 backup 数据集先顶着(防误删,不防盘坏)/ 增购备份盘 / 备去局域网其他机器;
+- 落点定下后配 prune:keep-daily=7, keep-weekly=4, keep-monthly=3。
 
 ## 四、执行顺序(每步独立可回退)
 
-1. 装 4TB,建池 + 数据集 + 存储定义(纯增量,零风险);
-2. 迁 nvme 上 5 个 VM(537G)入 tank:`qm move-disk` 在线迁移,102 的 750G 盘约 1 小时;迁完清 `vgnvme` VG、fstab、nvme 存储定义;
-3. nvme1 切分区,`zpool add` 挂 SLOG + L2ARC(命令见 [1.存储配置](1.存储配置.md) 第三节);
-4. iKUAI 盘迁 tank,`/hdd` 收敛为纯备份 + 定 prune;
-5. 26 台 lab VM 分批夜间迁 tank,给 local-lvm 松绑;
-6. 删 fnOS 测试机 VM 105;克隆日常走 PVE 原生,golden 与 reflink 备用方案按需再建。
+1. 4TB 全盘读测(~6 小时),建池 + 数据集 + 存储定义(纯增量,零风险);
+2. 迁海力士上 5 个 VM(537G)入 tank:`qm move-disk` 在线迁移,102 的 750G 盘约 1 小时;迁完清 `vgnvme` VG、fstab、nvme 存储定义;
+3. 海力士切分区,`zpool add` 挂 SLOG + L2ARC(命令见 [1.存储配置](1.存储配置.md) 第三节);
+4. 删 fnOS 测试机 VM 105,`pvesm remove hdd`,清根分区残留 `/hdd` 目录;
+5. 克隆日常走 PVE 原生,golden 与 reflink 备用方案按需再建。
 
-唯一硬窗口在 2→3 之间:nvme1 清空后、缓存挂上前,tank 是无加速单盘池——正常运行,只是不快。
+**存量不迁**:local-lvm(系统盘原生 NVMe)上的 iKUAI 与 26 台 lab VM 留在原地——随机 I/O 上原生 NVMe 优于 HDD+缓存,迁移只亏不赚。tank 定位是增量出厂与容量层:新 VM 默认 tankvm,local-lvm 只减不增。分区命令中的 nvme 枚举名已漂移(海力士现为 nvme0、系统盘为 nvme1),一律按 [1.存储配置](1.存储配置.md) 的 by-id 写法执行。
 
 ## 五、新盘入列体检(二手 HGST 7K4000)
 
