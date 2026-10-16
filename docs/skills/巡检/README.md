@@ -18,7 +18,7 @@
 ```mermaid
 flowchart LR
     subgraph 知识层[知识层 docs/skills/巡检]
-        SK["巡检 Skills × 5<br/>巡检项 / 指标 / 阈值 / 处置建议"]
+        SK["巡检 Skills × 6<br/>巡检项 / 指标 / 阈值 / 处置建议"]
     end
     subgraph 采集层[采集层 实施层部署]
         P["Prometheus"]
@@ -50,7 +50,8 @@ flowchart LR
 | Skill | 覆盖对象 | 主要数据来源 | 状态 |
 | --- | --- | --- | --- |
 | [inspect-server](./inspect-server/SKILL.md) | Linux 主机(物理机/虚机/宿主机) | node_exporter + shell 盲区 | ✅ 初版 |
-| inspect-middleware | MySQL、Redis、Kafka、Zookeeper、ES、Nginx、Nacos、EMQX、Filebeat、Jenkins | 组件原生 CLI/API 为主,exporter 可选 | ✅ 初版(10 组件 / 100 项,实验机实测) |
+| [inspect-middleware](./inspect-middleware/SKILL.md) | MySQL、Redis、Kafka、Zookeeper、ES、Nginx、Nacos、EMQX、Filebeat、Jenkins | 组件原生 CLI/API 为主,exporter 可选 | ✅ 初版(10 组件 / 100 项,实验机实测) |
+| [inspect-ac](./inspect-ac/SKILL.md) | 无线网:集客 AC 与下挂 AP | AC 管理 HTTP API(补盲面,ac-inspect.sh) | ✅ 初版(5 项,真机实测) |
 | inspect-cloud | 阿里云、AWS | aliyun / aws CLI(非指标类巡检) | 待编写 |
 | inspect-service | liko-* 业务服务 | blackbox 拨测 + ES 日志错误率(复用 filebeat→ES 链路) | 待编写 |
 | inspect-datacenter | 温湿度、UPS、交换机、PDU、机柜电力 | snmp_exporter + 人工巡检清单模板 | 待编写 |
@@ -100,7 +101,7 @@ ln -s "$PWD/docs/skills/巡检/inspect-server" ~/.zcode/skills/inspect-server
 
 | 阶段 | 内容 | 状态 |
 | --- | --- | --- |
-| 1 | 抽取 5 个巡检 skill(知识先行) | 进行中 |
+| 1 | 抽取 6 个巡检 skill(知识先行) | 进行中 |
 | 2 | 监控栈部署(docker-compose + exporter 文档) | 未开始 |
 | 3 | inspect-runner 巡检引擎 + server/middleware 规则 | 未开始 |
 | 4 | 云 CLI 补盲 + 业务拨测 + 机房 | 未开始 |
