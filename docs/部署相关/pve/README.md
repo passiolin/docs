@@ -12,7 +12,8 @@
 | --- | --- | --- |
 | 1 | [存储配置](1.存储配置.md) | 建池、数据集、SLOG/L2ARC 分区、storage.cfg、克隆与快照操作、巡检命令 |
 | 2 | [存储性能实测](2.存储性能实测.md) | tank(HDD+缓存)与 local-lvm(NVMe)的 fio 方法论、调优时间线、实测矩阵与踩坑清单 |
-| 3 | [LVM缓存迁移与实测](3.LVM缓存迁移与实测.md) | ZFS→LVM+dm-cache 迁移六阶段、踩坑、热数据 fio 五件套、PVE 盘参数矩阵(6 台单变量)、fsync 特性与回退键 |
+| 3 | [LVM缓存迁移与实测](3.LVM缓存迁移与实测.md) | ZFS→LVM+dm-cache 迁移六阶段、踩坑、热数据 fio 五件套、fsync 特性与回退键 |
+| 4 | [盘参数性能实测](4.盘参数性能实测.md) | 6 台单变量矩阵:io_uring / writeback / unsafe / qcow2 / virtio-blk 对缓存路径的影响、复现步骤与推荐参数集 |
 
 ## 一、要解决的问题
 
