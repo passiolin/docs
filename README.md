@@ -46,6 +46,7 @@ python3 build-manifest.py     # 生成 manifest.json（可选，仅这一步用�
 | Mermaid 图表 | ` ```mermaid ` 代码块自动渲染成图，跟随明暗主题重新着色，按需加载不拖慢普通页面 |
 | 明暗主题 | 跟随系统，可手动切换并记忆 |
 | 站内跳转 | 文档里的 `[链接](./xxx.md)` 直接跳转到对应页面 |
+| 短链接 | 每篇文档可配一个英文短路径别名（`aliases.json`），地址栏显示 `#/mysql/xtrabackup` 这样的短链；中文长链接仍可访问，会自动规范化成短链 |
 | 状态记忆 | 记住上次读到的文档；面包屑、上一篇/下一篇 |
 | 响应式 | 侧栏可一键收起 / 展开（记忆状态），窄屏下收进抽屉；支持打印样式 |
 
@@ -60,9 +61,21 @@ const CONFIG = {
   DOC_ROOT: 'docs',                 // 内容根目录：目录树从这层开始显示，设为 '' 表示当前目录
   DEFAULT_FILE: 'README.md',        // 默认打开的文档（相对于 DOC_ROOT）
   EXCLUDE: [...],                   // 目录树排除规则（正则）
+  ALIAS_FILE: 'aliases.json',       // 短链接别名表（相对站点根目录），设为 '' 关闭短链接
   TOC_LEVELS: [2, 3, 4],            // 右侧大纲提取的标题层级
 };
 ```
+
+`aliases.json` 是 `短别名: docs/下的真实路径` 的映射，例如：
+
+```json
+{
+  "mysql/xtrabackup": "docs/部署相关/mysql/2.MySQL备份与恢复详解：mysqldump、xtrabackup与PITR实战.md"
+}
+```
+
+- 别名冲突时先到先得；每个别名对应一篇文档，一篇只有第一个别名生效。
+- 新增文档后记得补一条别名，并跑 `python3 build-manifest.py`（会顺带校验别名：失效目标、未覆盖文档都会告警）。
 
 `build-manifest.py` 顶部的 `EXCLUDE_FILES` / `EXCLUDE_DIRS` 控制哪些文件不进目录树。
 

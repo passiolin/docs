@@ -19,6 +19,9 @@ EXCLUDE_FILES = {"index.html", "manifest.json", "build-manifest.py",
                  "desktop.ini", "thumbs.db", ".ds_store"}
 EXCLUDE_DIRS = {"assets", "node_modules", ".git", ".idea", ".vscode", "__pycache__"}
 
+# 与 index.html 的 CONFIG.DOC_ROOT 保持一致；短别名只要求覆盖这个目录下的文档
+DOC_ROOT = "docs"
+
 
 def natural_key(name: str):
     """自然排序：page2 排在 page10 前面，中文按拼音/Unicode 排序。"""
@@ -93,6 +96,47 @@ def main():
 
     print(f"✅ 已生成 manifest.json：{count} 个文件，{len(tree['children'])} 个顶层条目")
     print("   刷新浏览器即可看到最新目录。")
+    check_aliases()
+
+
+def check_aliases():
+    """校验 aliases.json（短路径别名表）：目标失效 / 新文档缺别名 时给出告警。"""
+    alias_file = "aliases.json"
+    if not os.path.isfile(alias_file):
+        print(f"⚠️ 未找到 {alias_file}，文档只能用完整路径访问")
+        return
+    try:
+        with open(alias_file, encoding="utf-8") as f:
+            aliases = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"⚠️ {alias_file} 解析失败：{e}")
+        return
+
+    stale, targets = [], set()
+    for alias, target in aliases.items():
+        if not os.path.isfile(target):
+            stale.append(f"{alias} → {target}")
+        targets.add(target)
+
+    md_files = set()
+    base = DOC_ROOT if DOC_ROOT else "."
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d not in EXCLUDE_DIRS]
+        for name in files:
+            if name.lower().endswith(".md") and name not in EXCLUDE_FILES:
+                md_files.add(os.path.relpath(os.path.join(root, name)).replace(os.sep, "/"))
+
+    missing = sorted(md_files - targets)
+    if stale:
+        print(f"⚠️ aliases.json 有 {len(stale)} 个失效别名（目标文件不存在）：")
+        for line in stale:
+            print(f"   {line}")
+    if missing:
+        print(f"⚠️ 有 {len(missing)} 个文档还没有短别名（仍可用完整路径访问）：")
+        for path in missing:
+            print(f"   {path}")
+    if not stale and not missing:
+        print(f"✅ aliases.json 校验通过：{len(aliases)} 个别名覆盖全部文档")
 
 
 if __name__ == "__main__":

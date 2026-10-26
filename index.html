@@ -681,6 +681,7 @@ const CONFIG = {
   AVATAR: 'assets/avatar.jpg',     // 头像图片（设为空字符串则显示默认图标）
   DOC_ROOT: 'docs',                // 站点内容根目录：目录树从这里开始显示；设为 '' 表示当前目录
   DEFAULT_FILE: 'README.md',       // 打开时默认展示的文件（相对于 DOC_ROOT）
+  ALIAS_FILE: 'aliases.json',      // 短路径别名表（alias → 文档路径）；设为 '' 关闭
   EXCLUDE: [                       // 目录树中排除的文件 / 文件夹（每一段匹配）
     /^index\.html$/i, /^manifest\.json$/i, /^build-manifest\.py$/i,
     /^assets(\/|$)/i, /^\./, /~$/, /^\.zcode/
@@ -801,6 +802,8 @@ const state = {
   currentPath: null,
   searchIndex: null,        // Map<path, {title, text}>
   treeError: null,          // 目录扫描失败的原因（用于精确提示）
+  aliasToPath: new Map(),   // 短别名 → 真实路径
+  pathToAlias: new Map(),   // 真实路径 → 短别名（生成链接时用）
 };
 
 /* ==================================================================
@@ -812,6 +815,21 @@ async function fetchText(url) {
   const ct = res.headers.get('content-type') || '';
   if (ct.includes('text/html')) throw new Error('HTML'); // 404 页面兜底
   return res.text();
+}
+
+/* ---------- 短路径别名：aliases.json（alias → 文档路径，路径相对站点根） ---------- */
+async function loadAliases() {
+  if (!CONFIG.ALIAS_FILE) return;
+  try {
+    const json = await (await fetch(CONFIG.ALIAS_FILE, { cache: 'no-store' })).json();
+    for (const [rawAlias, target] of Object.entries(json || {})) {
+      if (typeof rawAlias !== 'string' || typeof target !== 'string') continue;
+      const alias = rawAlias.replace(/^\/+|\/+$/g, '');
+      if (!alias || state.aliasToPath.has(alias)) continue; // 冲突时先到先得
+      state.aliasToPath.set(alias, target);
+      if (!state.pathToAlias.has(target)) state.pathToAlias.set(target, alias);
+    }
+  } catch { /* 别名表缺失不影响正常访问，退回完整路径 */ }
 }
 
 async function loadTree() {
@@ -1198,7 +1216,7 @@ function postProcess(root, filePath) {
     h.id = slugify(h.textContent);
     const a = document.createElement('a');
     a.className = 'heading-anchor';
-    a.href = `#${encodePath(filePath)}#${encodeURIComponent(h.id)}`;
+    a.href = hashFor(filePath, h.id);
     a.textContent = '#';
     a.addEventListener('click', (e) => e.preventDefault());
     h.appendChild(a);
@@ -1261,13 +1279,14 @@ function postProcess(root, filePath) {
       a.rel = 'noopener noreferrer';
       return;
     }
-    const [rel, anchor] = href.split('#');
+    // marked 会把 href 预编码成 %XX 形式，先解码还原成原始路径，别名查找才能命中
+    const [rel, anchor] = href.split('#').map(decodePart);
     if (/\.md$/i.test(rel)) {
       const target = resolvePath(dir, rel);
-      a.href = `#${encodePath(target)}${anchor ? '#' + encodeURIComponent(anchor) : ''}`;
+      a.href = hashFor(target, anchor);
     } else if (rel === '') {
       // 同页锚点
-      a.href = `#${encodePath(filePath)}#${encodeURIComponent(anchor || '')}`;
+      a.href = hashFor(filePath, anchor || '');
     }
     // 其它相对资源（.html 等）保持原样
   });
@@ -1276,7 +1295,7 @@ function postProcess(root, filePath) {
   root.querySelectorAll('img').forEach((img) => {
     const src = img.getAttribute('src') || '';
     if (/^(https?:|data:)/i.test(src)) return;
-    const target = resolvePath(dir, src);
+    const target = resolvePath(dir, decodePart(src));
     img.addEventListener('error', () => swapImgMissing(img, src), { once: true });
     img.src = encodePath(target);
   });
@@ -1687,7 +1706,7 @@ function updatePager() {
   const set = (el, p) => {
     el.hidden = !p;
     if (p) {
-      el.href = `#${encodePath(p)}`;
+      el.href = hashFor(p);
       el.querySelector('.p-title').textContent = p.endsWith('/README.md')
         ? getDir(p).split('/').pop() || p : baseName(p);
     }
@@ -1797,8 +1816,13 @@ function parseRoute() {
   return { path: decodePart(noSlash.slice(0, i)), anchor: decodePart(noSlash.slice(i + 1)) };
 }
 
+function hashFor(path, anchor) {
+  const p = state.pathToAlias.get(path) || path; // 有别名的文档一律生成短链接
+  return `#/${encodePath(p)}${anchor ? '#' + encodeURIComponent(anchor) : ''}`;
+}
+
 function navigate(path, anchor) {
-  const target = `#/${encodePath(path)}${anchor ? '#' + encodeURIComponent(anchor) : ''}`;
+  const target = hashFor(path, anchor);
   if (location.hash === target) loadFile(path, anchor);
   else location.hash = target;
 }
@@ -1807,6 +1831,7 @@ let routeSeq = 0;
 async function onRouteChange() {
   const seq = ++routeSeq;
   let { path, anchor } = parseRoute();
+  if (path && state.aliasToPath.has(path)) path = state.aliasToPath.get(path); // 短别名还原
 
   if (!path) {
     // 无路由：始终打开 DOC_ROOT 下的默认文件 → 根目录默认文件 → 第一个文件
@@ -1814,7 +1839,10 @@ async function onRouteChange() {
     path = (state.files.includes(inRoot) ? inRoot
       : (state.files.includes(CONFIG.DEFAULT_FILE) ? CONFIG.DEFAULT_FILE : state.files[0]));
     if (!path) { renderNoDocs(); return; }
-    history.replaceState(null, '', `#/${encodePath(path)}`);
+    history.replaceState(null, '', hashFor(path));
+  } else if (location.hash !== hashFor(path, anchor)) {
+    // 长路径 / 别名统一规范化成短链接，历史记录不新增条目
+    history.replaceState(null, '', hashFor(path, anchor));
   }
   if (!state.files.includes(path)) {
     // 容忍大小写差异
@@ -1938,7 +1966,7 @@ async function init() {
   initTheme();
   bindEvents();
 
-  await loadTree();
+  await Promise.all([loadTree(), loadAliases()]);
   if (!state.tree || !state.files.length) { renderTreeEmpty(state.treeError || {}); }
   await onRouteChange();
 }
