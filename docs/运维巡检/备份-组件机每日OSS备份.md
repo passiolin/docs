@@ -1,0 +1,82 @@
+# 组件机每日备份(99 → 阿里云 OSS)
+
+- **对象**: sg-system-component(10.61.74.99) 上的有状态组件
+- **目标桶**: `oss://test-gsjh-backup/`(新加坡 ap-southeast-1,私有桶,RAM 策略 `oss:*` 限定该桶)
+- **上线**: 2026-10-20,全组件已手动跑通验证
+- **排期**(北京时间,错峰): mysql 04:00 → mongodb 04:15 → emqx 04:40 → configs 04:50
+
+## OSS 布局与保留
+
+```
+test-gsjh-backup/
+├── mysql/<YYYY-MM-DD>/mysql-full-<日期>.sql.gz      # --all-databases 含 nacos 配置库
+├── mongodb/<YYYY-MM-DD>/mongo-all-<日期>.arch.gz    # mongodump --archive --gzip
+├── emqx/<YYYY-MM-DD>/emqx-data-<日期>.tar.gz        # mnesia: MQTT 用户/ACL
+└── configs/<YYYY-MM-DD>/configs-<日期>.tar.gz       # 全部配置 + 重建底账
+```
+
+- OSS 端按日期目录 **7 天滚动**,由各脚本末尾的 retention 自动清理
+- 本地暂存 `/data/backup/tmp/` 保留 2 天
+- configs 包内含: 各组件 conf/证书(nginxWebUI 排除 565M log 目录)、nacos 容器内 conf、
+  `docker-containers.json`(全部容器运行时定义)、`kafka-topics.txt`、systemd unit
+
+## 明确不备份(测试环境,数据可重建)
+
+| 组件 | 理由 |
+| --- | --- |
+| redis | 纯缓存,自动重建(`redis.sh` 脚本保留未挂 cron,存了真数据再启用) |
+| kafka 数据 | 流动消息;topic 元数据快照在 configs 包 |
+| ES / nexus / zookeeper | 日志、CI 可重推的制品、辅助协调数据 |
+| doris | routine load 可从 kafka 重放;如需可只备 FE metadata(待定) |
+
+## 文件清单(/data/backup/)
+
+| 文件 | 说明 |
+| --- | --- |
+| `backup.env` | 凭证与参数,**600 权限,勿提交 git** |
+| `oss.py` | 零依赖 OSS 客户端(V1 签名,标准库);注意 prefix/marker/max-keys 不参与签名 |
+| `lib.sh` | 公共函数(flock 防重叠、上传校验、滚动清理) |
+| `mysql.sh` / `mongodb.sh` / `emqx.sh` / `configs.sh` | 各组件备份脚本 |
+| `redis.sh` | 已停用(见上表) |
+| `logs/` | 各组件运行日志(cron 重定向) |
+
+## 恢复速查
+
+```bash
+# mysql 全量恢复(先空库再导入,或用 --force 跳过已存在对象)
+gunzip < mysql-full-2026-10-20.sql.gz | docker exec -i -e MYSQL_PWD=<pwd> mysql mysql -uroot
+# 配合 binlog PITR: dump 里有 --source-data=2 记录的 binlog 坐标,见 mysql/4.备份与恢复.md
+docker exec -i -e MYSQL_PWD=<pwd> mysql mysql -uroot -e "SHOW BINLOG EVENTS"  # 定位后 mysqlbinlog 回放
+
+# mongodb
+docker exec -i mongodb mongodump恢复: docker exec -i mongodb mongorestore -u root -p<pwd> --authenticationDatabase admin --archive --gzip < mongo-all-2026-10-20.arch.gz
+
+# emqx / configs: 直接解包覆盖对应目录后重启容器
+tar -C /data -xzf emqx-data-2026-10-20.tar.gz && docker restart emqx
+```
+
+## 常用验证
+
+```bash
+python3 /data/backup/oss.py list ""            # 列全部对象
+python3 /data/backup/oss.py list "mysql/"      # 按组件列
+/data/backup/logs/<组件>.log                    # 最近一次运行日志
+```
+
+## 告警(2026-10-20 接入)
+
+- **失败必告警,成功发简短通知**(兼作心跳:每天固定 4 条,完全静默才说明机器挂了),均带**【测试环境】**前缀
+- 发到飞书群自定义机器人;webhook 与开关在 `backup.env`:
+  `FEISHU_WEBHOOK_URL`(必填)、`FEISHU_NOTIFY_SUCCESS=0` 可关掉成功通知只留失败告警
+
+## 已知边界(待补)
+
+- 101 的 etcd 快照仍只在本机,未推 OSS
+- 未做恢复演练(建议找一天用真实 dump 在空容器里演练一遍 mysql PITR)
+- doris 未备份(如需可只备 FE metadata,待定)
+
+## 运维记录
+
+- 2026-10-20 修复 99 整机 DNS 失效: DHCP 下发的阿里云内网 DNS `100.100.2.136/138` 不可达
+  (组件间全用内网 IP 通信,故长期未被发现),`/etc/systemd/resolved.conf.d/dns.conf`
+  全局改用 `223.5.5.5` + `8.8.8.8`
