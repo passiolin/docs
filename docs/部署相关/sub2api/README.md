@@ -3,7 +3,7 @@
 团队共用 AI 编程能力的统一入口：模型厂商账号集中托管在 sub2api 网关后面，平台签发自己的 `sk-` Key 给同事，认证、调度、额度、计费收口在一处。部署与运维见 [1.安装部署-docker-compose](1.安装部署-docker-compose.md)。
 
 - **版本基线**：sub2api 0.2.x（Docker Hub `weishaw/sub2api`，上游 GitHub Wei-Shaw/sub2api，LGPL v3），实测部署 0.2.3，上游最新 0.2.15（2026-10-09）
-- **线上入口**：`https://sub2api.gsjhdev.top`，nginx + 通配符证书，后端 8080，三容器（app + PostgreSQL 18 + Redis 8）本地目录持久化
+- **线上入口**：`https://sub2api.ipuff.online`，nginx + 通配符证书，后端 8080，三容器（app + PostgreSQL 18 + Redis 8）本地目录持久化
 - **管理面**：后台网页 + 管理 API（Admin Key / JWT），批量账号操作可脚本化
 
 ## 文章索引
@@ -43,4 +43,4 @@ Claude 和 Codex 模型能力确实强，但都不适合大范围开通、也不
 - **国产客户端**：智谱 zcode、DeepSeek harness，配套自家模型；
 - **IDE 插件**：IDEA、VS Code 的 AI 编程插件（如 CC GUI），配中转站与 Key 即用。
 
-统一地址：`https://sub2api.gsjhdev.top/v1`（OpenAI 兼容，Key 为平台签发的 `sk-` 前缀）。
+统一地址：`https://sub2api.ipuff.online/v1`（OpenAI 兼容，Key 为平台签发的 `sk-` 前缀）。
