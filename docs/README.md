@@ -58,7 +58,7 @@
 下班后的基础设施，博客大半文章来自这里：
 
 - 🖥 **虚拟化**：[PVE](部署相关/pve/README.md)，显卡直通（IOMMU/VFIO 全流程踩坑）、ZFS raidz1
-- 🌐 **软路由**：iKuai 虚拟机部署 + NAT/桥接组网、DNS 劫持
+- 🌐 **软路由**：iKuai 虚拟机部署 + NAT/桥接组网、DNS 劫持；[OpenWrt 双 WAN 按目标 IP 分流](部署相关/openwrt/README.md)，国内直连、其余走 VPN
 - 📶 **无线 AC**：[集客 AC 巡检](skills/巡检/inspect-ac/README.md)，AP 终端数异常检测与授权重推——接口逆向 + 巡检脚本，整体收纳在 inspect-ac 巡检 skill 内
 - 🐧 **主机基线**：[Linux](部署相关/linux/README.md)，到手清单（换源/SSH 加固/防火墙）与内核调优，单机十万长连接实测、conntrack 截胡复盘
 - 🔗 **组网**：Tailscale 不走官方服务——自托管 [headscale + derper](部署相关/tailscale/README.md)；OpenVPN、WireGuard 异地组网
