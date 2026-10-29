@@ -14,14 +14,14 @@
 | 4 | [持久化与备份恢复](4.持久化与备份恢复.md) | RDB/AOF、kill -9 恢复实测 | ✅ 已实测 |
 | 5 | [主从与哨兵](5.主从与哨兵.md) | 复制、哨兵、故障切换计时 | ✅ 已实测 |
 | 6 | [Cluster集群](6.Cluster集群.md) | 三主三从、MOVED、杀主接管 | ✅ 已实测 |
-| 8 | [日常运维与排障](8.日常运维与排障.md) | 排障字典(实测错误集)、大 key 扫描 | ✅ 已实测 |
-| 9 | [监控与告警](9.监控与告警.md) | redis_exporter、按巡检 R 编号对齐 | ✅ 已实测 |
+| 7 | [日常运维与排障](7.日常运维与排障.md) | 排障字典(实测错误集)、大 key 扫描 | ✅ 已实测 |
+| 8 | [监控与告警](8.监控与告警.md) | redis_exporter、按巡检 R 编号对齐 | ✅ 已实测 |
 
 ## 阅读路径
 
 - **从零搭**:1 → 2 → 3 → 4(单机闭环);
 - **要高可用**:5(主从+哨兵,首选);**要水平扩展/多分片**:6;
-- **接手在跑的库**:8 → 9。
+- **接手在跑的库**:7 → 8。
 
 ## 架构选型(实测后的一句结论)
 
@@ -83,7 +83,7 @@ timeline
 | 场景 | 命令 | 备注 |
 | --- | --- | --- |
 | 连通与信息 | `PING` / `INFO server` / `DBSIZE` | 巡检 R01 起 |
-| 内存与编码 | `MEMORY USAGE key` / `OBJECT ENCODING key` | 大 key 治理联动第 8 篇 |
+| 内存与编码 | `MEMORY USAGE key` / `OBJECT ENCODING key` | 大 key 治理联动第 7 篇 |
 | 持久化 | `BGSAVE` / `LASTSAVE` / `INFO persistence` | 只用 BGSAVE;SAVE 阻塞 |
 | 复制与哨兵 | `ROLE` / `SENTINEL get-master-addr-by-name mymaster` | 应用寻主入口 |
 | 集群 | `CLUSTER INFO` / `CLUSTER KEYSLOT key` / `CLUSTER NODES` | cluster_state:ok 是健康线 |
@@ -246,7 +246,7 @@ sequenceDiagram
 | fork 与 COW、AOF | [第 4 篇](4.持久化与备份恢复.md) | appendonlydir 三件套;everysec 下 kill -9 数据完好 |
 | 哨兵 quorum 选举 | [第 5 篇](5.主从与哨兵.md) | 18 秒切换;旧主回归自动降级 |
 | Cluster 槽与 CRC16 | [第 6 篇](6.Cluster集群.md) | `MOVED 15495`;`CLUSTER KEYSLOT user:1001 = 5712`;杀主接管 |
-| 编码与内存 | [第 8 篇](8.日常运维与排障.md) | 大 key 扫描 |
+| 编码与内存 | [第 7 篇](7.日常运维与排障.md) | 大 key 扫描 |
 | 许可变更与分叉 | [../valkey/](../valkey/README.md) | RDB v12(Redis 8.0 写)被 Valkey 8.1 拒载,跨软件复制被挡([第 2 篇实测](../valkey/2.与Redis兼容性实测.md)) |
 
 待补实测:
@@ -265,7 +265,7 @@ sequenceDiagram
 
 ## 关联
 
-- **巡检**:命令面巡检项 R01~R13、阈值与处置见 [skills/巡检/inspect-middleware/references/redis.md](../../skills/巡检/inspect-middleware/references/redis.md);第 9 篇以 R 编号对齐指标面;
+- **巡检**:命令面巡检项 R01~R13、阈值与处置见 [skills/巡检/inspect-middleware/references/redis.md](../../skills/巡检/inspect-middleware/references/redis.md);第 8 篇以 R 编号对齐指标面;
 - 宿主机/容器层巡检归 [inspect-server](../../skills/巡检/inspect-server/SKILL.md)。
 
 ## 新增与修改

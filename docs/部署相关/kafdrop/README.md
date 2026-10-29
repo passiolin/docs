@@ -1,4 +1,6 @@
+# Kafdrop
 
+Kafka 网页浏览界面,9003 暴露,连 `10.15.0.107:9092`。
 
 ```shell
 docker run -d \

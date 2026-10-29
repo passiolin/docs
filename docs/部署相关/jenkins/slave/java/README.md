@@ -1,4 +1,6 @@
+# Jenkins slave(Java)
 
+JDK 21 构建代理镜像,含 Maven `settings.xml` 与 agent 启动脚本。
 
 ```shell
 docker build -f Dockerfile -t mirrors.dl-aiot.com/dl/component/jenkins-slave-java:1.0.0 .

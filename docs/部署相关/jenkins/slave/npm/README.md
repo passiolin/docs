@@ -1,4 +1,6 @@
+# Jenkins slave(Node)
 
+Node 构建代理镜像。
 
 ```shell
 docker build -f Dockerfile -t mirrors.dl-aiot.com/dl/component/jenkins-slave-npm:1.0.0 .

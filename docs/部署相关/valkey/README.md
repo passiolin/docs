@@ -98,7 +98,7 @@ flowchart LR
 
 #### 差异三:兼容层机制——对外报 redis_version 7.2.4
 
-客户端生态普遍以 `redis_version` 协商行为(版本探测、特性开关),Valkey 对外报 **7.2.4**(我们 8.1.10 实测),语义是"**请按 Redis 7.2 的能力集对待我**"——这保证 Jedis/Lettuce/go-redis 等主流客户端零改动接入(第 2 篇双向实测全通,含 ACL 账号跨用);巡检与管理面用 `server_name:valkey` 区分。**兼容的硬边界在文件格式**:RDB 只认到 v11(等价 Redis 7.x),Redis 8.0 写的 **v12 拒载**——实测报 `Can't handle RDB format version 12` 后 Fatal error 退出;跨软件主从复制同样被版本协商挡住(第 3 篇)。这个边界随双方版本演进会移动,搬运数据前先核对第 2 篇矩阵的实测日期。
+客户端生态普遍以 `redis_version` 协商行为(版本探测、特性开关),Valkey 对外报 **7.2.4**(我们 8.1.10 实测),等价于声明「按 Redis 7.2 的能力集协商」——这保证 Jedis/Lettuce/go-redis 等主流客户端零改动接入(第 2 篇双向实测全通,含 ACL 账号跨用);巡检与管理面用 `server_name:valkey` 区分。**兼容的硬边界在文件格式**:RDB 只认到 v11(等价 Redis 7.x),Redis 8.0 写的 **v12 拒载**——实测报 `Can't handle RDB format version 12` 后 Fatal error 退出;跨软件主从复制同样被版本协商挡住(第 3 篇)。这个边界随双方版本演进会移动,搬运数据前先核对第 2 篇矩阵的实测日期。
 
 ```mermaid
 flowchart LR

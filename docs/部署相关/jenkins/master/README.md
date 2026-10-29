@@ -1,3 +1,6 @@
+# Jenkins master
+
+主控容器:官方 `jenkins/jenkins:2.567-jdk21`,host 网络,`/data/jenkins/master` 挂成 `JENKINS_HOME`。
 
 ```
 docker run -d \

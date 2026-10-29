@@ -1,9 +1,10 @@
+# Jenkins slave(Python)
 
+Python 构建代理镜像。
 
 ```shell
 docker build -f Dockerfile -t overseas-mirrors.dl-aiot.com/dl/component/jenkins-slave-python:1.0.0 .
 ```
-
 
 ```sh
 docker run -d \
