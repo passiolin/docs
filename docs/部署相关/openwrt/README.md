@@ -23,19 +23,21 @@
 
 ```mermaid
 flowchart LR
-    LAN["家用 LAN<br/>192.168.0.0/24"] --> GW["kwrt-gw 网关<br/>pbr + chnroute 分流"]
+    LAN["家用 LAN<br/>192.168.0.0/24"] --> GW["kwrt-gw 网关<br/>pbr 加 chnroute 分流"]
 
-    GW -->|"国内已标记(5265)<br/>~7ms"| WAN["pppoe-wan 直连<br/>电信 CGNAT"]
-    GW -->|"mesh:办公网段/对端<br/>table 52 最长前缀"| TS0["tailscale0"]
-    GW -->|"境外未标记(5270 兜底)"| TS0
+    GW -->|"国内已标记 5265<br/>约 7ms"| WAN["pppoe-wan 直连<br/>电信 CGNAT"]
+    GW -->|"mesh 办公网段与对端<br/>table 52 最长前缀"| TS0["tailscale0"]
+    GW -->|"境外未标记 5270 兜底"| TS0
 
-    TS0 -.->|"WireGuard UDP 直连<br/>7~10ms"| PVE["tailscale(PVE 103)<br/>办公网 10.10.10.0/24"]
-    TS0 ==>|"WireGuard UDP 直连<br/>~24ms"| HK1["hk-1(VPS 荃湾)<br/>exit node"]
-    HK1 --> NET(("互联网"))
+    TS0 -.->|"WireGuard UDP 直连<br/>7 到 10ms"| PVE["tailscale PVE 103<br/>办公网 10.10.10.0/24"]
+    TS0 -->|"WireGuard UDP 直连<br/>约 24ms"| HK1["hk-1 VPS 荃湾<br/>exit node"]
+    HK1 --> NET(["互联网"])
 
     style PVE fill:#e8f4fd,stroke:#2196f3
     style HK1 fill:#fff3e0,stroke:#ff9800
 ```
+
+出口形态对照:境外未标记流量走 hk-1 的 WireGuard UDP(约 24ms 起),办公室网段走 PVE 直连(7~10ms),国内已标记流量回 pppoe-wan(约 7ms);打洞退化时 mesh 部分回落 DERP(hk) 中继。
 
 三条路径互不抢道:国内已标记流量在 5265 抢在 tailscale 兜底之前回 pppoe-wan;mesh 目标按 table 52 的最长前缀进 tailscale0 打直连;其余未标记流量由 5270 兜底交给 hk-1 出境。OpenVPN 隧道已于 10-31 拆除,不再出现在链路里。
 
