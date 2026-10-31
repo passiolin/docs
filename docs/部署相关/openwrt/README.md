@@ -30,7 +30,7 @@ flowchart LR
     GW -->|"境外未标记(5270 兜底)"| TS0
 
     TS0 -.->|"WireGuard UDP 直连<br/>7~10ms"| PVE["tailscale(PVE 103)<br/>办公网 10.10.10.0/24"]
-    TS0 ==>"WireGuard UDP 直连<br/>~24ms"| HK1["hk-1(VPS 荃湾)<br/>exit node"]
+    TS0 ==>|"WireGuard UDP 直连<br/>~24ms"| HK1["hk-1(VPS 荃湾)<br/>exit node"]
     HK1 --> NET(("互联网"))
 
     style PVE fill:#e8f4fd,stroke:#2196f3
