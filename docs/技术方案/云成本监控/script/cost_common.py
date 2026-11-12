@@ -230,8 +230,15 @@ def redact_url(url):
     return urllib.parse.urlunsplit((parsed.scheme, netloc, path, "", ""))
 
 
+FEISHU_RATE_LIMIT_CODE = 11232
+FEISHU_RETRY_DELAYS = (10, 30, 60)
+
+
 def feishu_post(text, dry_run=False, card=None):
-    """推送飞书消息; 传 card 时发交互卡片, 否则发纯文本。dry_run 只跳过发送。"""
+    """推送飞书消息; 传 card 时发交互卡片, 否则发纯文本。dry_run 只跳过发送。
+
+    飞书限频(11232)按 10/30/60 秒退避重试; 其他错误码立即失败。
+    """
     webhook = os.getenv("FEISHU_WEBHOOK_URL") or os.getenv("FEISHU_WEBHOOK")
     if dry_run:
         LOGGER.info("dry-run: 跳过飞书推送")
@@ -243,8 +250,17 @@ def feishu_post(text, dry_run=False, card=None):
     else:
         body = {"msg_type": "text", "content": {"text": text}}
     LOGGER.info("推送飞书 %s", redact_url(webhook))
-    payload = http_json(webhook, method="POST", body=body)
-    code = payload.get("code", payload.get("StatusCode", 0))
-    if code != 0:
-        raise RuntimeError(f"飞书推送失败: code={code} msg={payload.get('msg')}")
-    return True
+    payload = {}
+    for delay in (0,) + FEISHU_RETRY_DELAYS:
+        if delay:
+            LOGGER.warning("飞书限频(%s), %s 秒后重试", FEISHU_RATE_LIMIT_CODE, delay)
+            time.sleep(delay)
+        payload = http_json(webhook, method="POST", body=body)
+        code = payload.get("code", payload.get("StatusCode", 0))
+        if code == 0:
+            return True
+        if code != FEISHU_RATE_LIMIT_CODE:
+            break
+    raise RuntimeError(
+        f"飞书推送失败: code={payload.get('code', payload.get('StatusCode'))} "
+        f"msg={payload.get('msg')}")
