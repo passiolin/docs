@@ -6,9 +6,10 @@
 # ============================================================
 [mysqld]
 # ---------- 一、内存与 InnoDB(硬件拍板) ----------
-# 数据热集缓冲,专机给物理内存 50%~70%;必须显式设(镜像默认仅 128M)
-innodb_buffer_pool_size = 4G
-# redo 容量,写密集 1G~4G;在线可调(默认 100M)
+# 数据热集缓冲;8G 专机给 6G(2026-11 sysbench 实测:写 +7~14%、读 +12%,见第 10 篇)
+# 换机器重算余量:总内存 − buffer pool ≥ OS+docker+mysqld 非池(~1.5G)+ 每连接预算 × 连接数
+innodb_buffer_pool_size = 6G
+# redo 容量,1G 为突发保险(实测非瓶颈,挡位差 ±2.4%,见第 10 篇);在线可调(默认 100M)
 innodb_redo_log_capacity = 1G
 # 内存临时表上限(每会话,与 max_heap_table_size 取小者生效)
 tmp_table_size          = 64M
