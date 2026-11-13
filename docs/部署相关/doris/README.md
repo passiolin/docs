@@ -2,6 +2,7 @@
 
 > - **版本基线**:Apache Doris 2.1.7(官方镜像 `apache/doris:fe-2.1.7` / `be-2.1.7`,2.1 LTS 线)。
 > - **实测环境**:PVE 虚机 doris-1/2/3(10.10.12.124/125/126,4C/8G/100G,Ubuntu 26.04,docker),2026-09-30。**3 FE + 3 BE 全链路实测**:部署、三大宿主前置、建表、Stream Load(10 万行)、杀 BE 副本容灾、FE 多数派与选举、在线扩容、metrics。
+> - **MySQL 同步子系列基线**:Doris 4.0.8、Flink 1.20.1、Flink CDC 3.7.0-1.20、MySQL 8.4.13、MySQL Router 8.4.13,2026-11-12,11 台基线虚机 + 1 台多实例扩展(10.10.12.121–132)。单机、MGR+Router、同实例多库、多实例四条链路,DML/DDL、主库切换、300 万行增量与监控均实测。
 > - **定位**:实时 OLAP 数仓(MPP 架构,FE 元数据/规划 + BE 存储/计算),MySQL 协议接入。生产参考:我们 StarRocks 同源架构的实验田。
 
 ## 文章索引
@@ -13,6 +14,12 @@
 | 3 | [数据导入与查询](3.数据导入与查询.md) | 建表模型、Stream Load、验证 | ✅ 已实测 |
 | 4 | [高可用与扩缩容](4.高可用与扩缩容.md) | 副本容灾、FE 多数派、选举与冷启 | ✅ 已实测 |
 | 5 | [监控与日常运维](5.监控与日常运维.md) | metrics 端点、排障字典 | ✅ 已实测 |
+
+## 子系列:MySQL Binlog 同步 Doris
+
+| 文章 | 内容 | 状态 |
+| --- | --- | --- |
+| [MySQL Binlog 同步 Doris](mysql-cdc/README.md) | 单机/MGR+Router/多实例多库,Flink CDC 3.7 + Doris 4.0.8;含 DDL 演进、主库切换、300 万行增量、Prometheus/Grafana | ✅ 已实测 |
 
 ## 阅读路径
 

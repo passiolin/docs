@@ -1,0 +1,35 @@
+# MGR 节点模板:替换 <SERVER_ID> / <NODE_IP> 后放到
+# /etc/mysql/mysql.conf.d/zz-mgr.cnf
+# 三节点仅 server-id / report_host / group_replication_local_address 不同。
+[mysqld]
+server-id=<SERVER_ID>
+bind-address=0.0.0.0
+mysqlx-bind-address=0.0.0.0
+report_host=<NODE_IP>
+
+binlog_format=ROW
+binlog_row_image=FULL
+binlog_checksum=NONE
+gtid_mode=ON
+enforce_gtid_consistency=ON
+log_bin=mysql-bin
+log_replica_updates=ON
+relay_log=relay-bin
+binlog_expire_logs_seconds=604800
+max_binlog_size=512M
+
+default-time-zone=+08:00
+character-set-server=utf8mb4
+collation-server=utf8mb4_0900_ai_ci
+transaction-isolation=READ-COMMITTED
+event_scheduler=ON
+
+plugin_load_add=group_replication.so
+group_replication_group_name=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+# 首次建组前保持 OFF;create_cluster 会 SET PERSIST 为 1
+group_replication_start_on_boot=OFF
+group_replication_local_address=<NODE_IP>:3306
+group_replication_group_seeds=<NODE1_IP>:3306,<NODE2_IP>:3306,<NODE3_IP>:3306
+group_replication_ip_allowlist=10.10.12.0/24
+group_replication_single_primary_mode=ON
+group_replication_recovery_get_public_key=ON

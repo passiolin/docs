@@ -1,0 +1,31 @@
+# 第二个 MySQL 实例 -> Doris,独立 pipeline
+# 源库也叫 app_db,但 route 到 ods_b_app_db,与实例 A 的 app_db 不冲突。
+source:
+  type: mysql
+  hostname: <MYSQL_B_IP>
+  port: 3306
+  username: cdc
+  password: <CDC_PASSWORD>
+  tables: app_db.\.*
+  server-id: 5700-5704
+  server-time-zone: Asia/Shanghai
+  scan.binlog.newly-added-table.enabled: true
+  jdbc.properties.allowPublicKeyRetrieval: true
+
+sink:
+  type: doris
+  fenodes: <DORIS_FE_IP>:8030
+  username: root
+  password: ""
+  table.create.properties.light_schema_change: true
+  table.create.properties.replication_num: 3
+
+route:
+  - source-table: app_db.\.*
+    sink-table: ods_b_app_db.<>
+    replace-symbol: <>
+
+pipeline:
+  name: mysql-inst-b-to-doris
+  parallelism: 2
+  schema.change.behavior: evolve

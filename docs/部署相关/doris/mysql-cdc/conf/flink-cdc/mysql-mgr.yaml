@@ -1,0 +1,27 @@
+# MGR + MySQL Router -> Doris 全库同步
+# 走 Router 6446(读写口),Flink CDC 永远连当前主库,主库切换时由 Router 重定向。
+source:
+  type: mysql
+  hostname: <MYSQL_ROUTER_IP>
+  port: 6446
+  username: cdc
+  password: <CDC_PASSWORD>
+  tables: app_mgr.\.*
+  server-id: 5500-5504
+  server-time-zone: Asia/Shanghai
+  scan.binlog.newly-added-table.enabled: true
+  # Router 侧 caching_sha2 全量认证会报 Public Key Retrieval is not allowed
+  jdbc.properties.allowPublicKeyRetrieval: true
+
+sink:
+  type: doris
+  fenodes: <DORIS_FE_IP>:8030
+  username: root
+  password: ""
+  table.create.properties.light_schema_change: true
+  table.create.properties.replication_num: 3
+
+pipeline:
+  name: mysql-mgr-to-doris
+  parallelism: 2
+  schema.change.behavior: evolve

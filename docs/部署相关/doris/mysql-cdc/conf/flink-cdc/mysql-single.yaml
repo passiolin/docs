@@ -1,0 +1,30 @@
+# 单机 MySQL -> Doris 全库同步
+# 提交:FLINK_HOME=/opt/flink /opt/flink-cdc/bin/flink-cdc.sh \
+#         /opt/pipelines/mysql-single.yaml --flink-home /opt/flink
+source:
+  type: mysql
+  hostname: <MYSQL_SINGLE_IP>
+  port: 3306
+  username: cdc
+  password: <CDC_PASSWORD>
+  tables: app_db.\.*
+  server-id: 5400-5404
+  server-time-zone: Asia/Shanghai
+  # 运行期新建的表也要读(否则 CREATE TABLE 后 Doris 侧不会建表)
+  scan.binlog.newly-added-table.enabled: true
+  # MySQL 8.4 caching_sha2 非 SSL 连接需要
+  jdbc.properties.allowPublicKeyRetrieval: true
+
+sink:
+  type: doris
+  fenodes: <DORIS_FE_IP>:8030
+  username: root
+  password: ""
+  table.create.properties.light_schema_change: true
+  table.create.properties.replication_num: 3
+
+pipeline:
+  name: mysql-single-to-doris
+  parallelism: 2
+  # 默认 LENIENT 会刻意忽略 TRUNCATE/DROP TABLE,要完整同步 DDL 必须显式 EVOLVE
+  schema.change.behavior: evolve

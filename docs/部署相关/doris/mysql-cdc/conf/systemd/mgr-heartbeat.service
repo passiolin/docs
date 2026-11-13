@@ -1,0 +1,15 @@
+[Unit]
+Description=MGR heartbeat writer (MySQL Router 6446)
+After=network-online.target mysqlrouter.service
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=-/etc/doris-sync-exporter.env
+Type=simple
+User=root
+ExecStart=/bin/bash /opt/doris-sync-exporter/mgr_heartbeat.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

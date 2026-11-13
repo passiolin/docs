@@ -1,0 +1,15 @@
+[Unit]
+Description=Doris sync status Prometheus exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+EnvironmentFile=-/etc/doris-sync-exporter.env
+Type=simple
+User=root
+ExecStart=/usr/bin/python3 /opt/doris-sync-exporter/sync_exporter.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

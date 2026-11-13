@@ -1,0 +1,9 @@
+# 追加到 /opt/doris/be/conf/be.conf
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+priority_networks=10.10.12.0/24
+storage_root_path=/opt/doris/be/storage
+
+be_port=9060
+webserver_port=8040
+heartbeat_service_port=9050
+brpc_port=8060

@@ -1,0 +1,18 @@
+# 合并进 /opt/flink/conf/config.yaml 的三处改动。
+# 注意:taskmanager.numberOfTaskSlots 与 parallelism.default 在官方
+# config.yaml 里已有同名键,不能重复追加,改原值即可;重复键会让
+# Flink 启动时报 "found duplicate key"。
+
+taskmanager:
+  numberOfTaskSlots: 4          # 原值 1
+
+parallelism:
+  default: 2                    # 原值 1
+
+rest:
+  address: 10.10.12.130         # 对外暴露 REST/Web UI
+  bind-address: 0.0.0.0         # 默认 localhost,外部 exporter 连不上
+
+execution:
+  checkpointing:
+    interval: 3s                # CDC 低延迟的关键

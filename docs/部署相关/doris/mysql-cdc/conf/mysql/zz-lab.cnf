@@ -1,0 +1,22 @@
+# MySQL 单机:ROW binlog + GTID,供 Flink CDC 读取
+# 放置:/etc/mysql/mysql.conf.d/zz-lab.cnf
+[mysqld]
+server-id=121
+bind-address=0.0.0.0
+mysqlx-bind-address=0.0.0.0
+
+binlog_format=ROW
+binlog_row_image=FULL
+log_bin=mysql-bin
+binlog_expire_logs_seconds=604800
+max_binlog_size=512M
+binlog_checksum=CRC32
+
+gtid_mode=ON
+enforce_gtid_consistency=ON
+
+default-time-zone=+08:00
+character-set-server=utf8mb4
+collation-server=utf8mb4_0900_ai_ci
+transaction-isolation=READ-COMMITTED
+event_scheduler=ON

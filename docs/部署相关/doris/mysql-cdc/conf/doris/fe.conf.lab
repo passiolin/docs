@@ -1,0 +1,11 @@
+# 追加到 /opt/doris/fe/conf/fe.conf
+# 注意:官方 fe.conf 默认 JAVA_OPTS_FOR_JDK_17 里 -Xmx8192m,8G 虚机需下调到 4G。
+JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+meta_dir=/opt/doris/fe/doris-meta
+priority_networks=10.10.12.0/24
+
+# 默认端口(与官方一致,列出来方便核对)
+http_port=8030
+rpc_port=9020
+query_port=9030
+edit_log_port=9010

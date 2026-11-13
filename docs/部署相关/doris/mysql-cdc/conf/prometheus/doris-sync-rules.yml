@@ -1,0 +1,92 @@
+groups:
+  - name: mysql-doris-cdc
+    rules:
+      - alert: MysqlDorisPipelineDown
+        expr: mysql_doris_flink_job_state != 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CDC pipeline {{ $labels.pipeline }} is not RUNNING"
+          description: "Flink job state is {{ $value }} (0 down, 1 running, 2 restarting, 3 failed)."
+
+      - alert: MysqlDorisHeartbeatLagHigh
+        expr: mysql_doris_heartbeat_lag_seconds > 30
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CDC pipeline {{ $labels.pipeline }} lag > 30s"
+          description: "End-to-end heartbeat lag is {{ $value }}s."
+
+      - alert: MysqlDorisHeartbeatStalled
+        expr: mysql_doris_heartbeat_lag_seconds > 300
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CDC pipeline {{ $labels.pipeline }} appears stalled"
+          description: "Heartbeat lag is {{ $value }}s (> 5min). Check Flink job, Network, MySQL binlog and Doris load."
+
+      - alert: MysqlDorisCheckpointStale
+        expr: mysql_doris_flink_checkpoint_age_seconds > 120
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Flink checkpoint for {{ $labels.pipeline }} is stale"
+          description: "No completed checkpoint for {{ $value }}s."
+
+      - alert: MysqlDorisCheckpointFailures
+        expr: changes(mysql_doris_flink_checkpoint_failed_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Flink checkpoint failures for {{ $labels.pipeline }}"
+          description: "The failed checkpoint counter changed in the last 10m."
+
+      - alert: MysqlDorisBinlogTooLarge
+        expr: mysql_doris_binlog_total_bytes > 5368709120
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MySQL binlog for {{ $labels.instance }} is larger than 5 GiB"
+          description: "binlog volume is {{ $value | humanize1024 }}; check retention and CDC progress."
+
+      - alert: MysqlDorisMgrMemberNotOnline
+        expr: mysql_doris_mgr_member_online == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MGR member {{ $labels.member }} is not ONLINE"
+          description: "Check group_replication state and the member's error log."
+
+      - alert: MysqlDorisRouterDown
+        expr: mysql_doris_router_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MySQL Router endpoint {{ $labels.endpoint }} is down"
+          description: "Target {{ $labels.target }} is not accepting TCP connections."
+
+      - alert: MysqlDorisDorisBeDown
+        expr: mysql_doris_doris_be_alive == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Doris BE {{ $labels.be }} is not alive"
+          description: "Check BE process, disk and FE heartbeat."
+
+      - alert: MysqlDorisExporterStale
+        expr: time() - mysql_doris_exporter_last_refresh_timestamp > 60
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sync exporter is stale"
+          description: "The exporter has not refreshed for more than 60s."
