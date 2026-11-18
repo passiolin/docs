@@ -63,6 +63,7 @@
 - 🐧 **主机基线**：[Linux](部署相关/linux/README.md)，到手清单（换源/SSH 加固/防火墙）与内核调优，单机十万长连接实测、conntrack 截胡复盘
 - 🔗 **组网**：Tailscale 不走官方服务——自托管 [headscale + derper](部署相关/tailscale/README.md)；OpenVPN、WireGuard 异地组网
 - 📦 **自托管中间件**：[MySQL](部署相关/mysql/README.md)、[Redis/Valkey](部署相关/redis/README.md)、[Kafka](部署相关/kafka/README.md)、[Zookeeper](部署相关/zookeeper/README.md)、[Elasticsearch](部署相关/elasticsearch/README.md)，部署、备份、监控写成系列
+- 🗃 **嵌入式数据库**：[SQLite](部署相关/sqlite/README.md)，1C2G/4C2G/4C8G 三档实测：写入、查询、并发与内存使用率，含空闲内存与 ANALYZE 坑
 - 💾 **统一账号**：OpenLDAP 直通 NAS 登录
 - 🤖 **本地大模型**：[llamacpp](部署相关/llamacpp/README.md) 部署笔记
 - 🎨 **本地文生图**：[MOSS-Image-SFT](部署相关/moss-image/README.md)，22G 卡上的 5B 模型，fp16 + CPU offload，中文文字渲染
