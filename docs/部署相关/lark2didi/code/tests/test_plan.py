@@ -66,7 +66,7 @@ def test_normalize_phone() -> None:
 
 
 def test_normalize_name() -> None:
-    assert normalize_name("王磊Evan") == "王磊"
+    assert normalize_name("赵小刚Dev") == "赵小刚"
     assert normalize_name("王小明Dev") == "王小明"
     assert normalize_name("Ryan") == ""
 

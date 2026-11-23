@@ -137,8 +137,8 @@ def test_legacy_member_never_auto_disabled() -> None:
 
 
 def test_name_match_protects_employee() -> None:
-    feishu = _snapshot([_user("u1", "王磊Evan", "13400000001")])
-    members = [_member("m1", "王磊", "13400000002")]
+    feishu = _snapshot([_user("u1", "赵小刚Dev", "13400000001")])
+    members = [_member("m1", "赵小刚", "13400000002")]
     state = _state(
         m1={"seen_in_feishu": True, "missing_runs": 2}
     )
