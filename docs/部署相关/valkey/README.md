@@ -1,7 +1,7 @@
 # Valkey 部署与选型(valkey)
 
 > - **版本基线**:Valkey 8.1(实测 8.1.10,官方 docker 镜像 `valkey/valkey:8.1`;其对外协议兼容层报告 `redis_version:7.2.4`)。
-> - **实测环境**:PVE 虚机 valkey-1/2/3(10.10.12.121/122/123,2C/4G,Ubuntu 26.04,docker),2026-09-30,另借 redis-1(118,Redis 8.0.6)做跨软件互操作。
+> - **实测环境**:PVE 虚机 valkey-1/2/3(10.10.12.121/122/123,2C/4G,Ubuntu 26.04,docker),2026-09-30,另借 redis-1(118,Redis 8.0.6)做跨软件互操作;2026-11-23 起第 4 篇实测改用 valkey-c1/2/3(10.10.12.151/152/153,同规格)——原 valkey-1/2/3 已被 Doris 实验复用。
 > - **定位**:Valkey 是 Redis 2024 年改许可证后由 Linux 基金会托管的开源(BSD)分叉。本文档集**不重复 Redis 通用运维**(单机/哨兵/Cluster/监控全套见 [../redis/](../redis/README.md)),只覆盖:部署差异、**与 Redis 的兼容性实测矩阵**、以及**迁移路径实测**。
 
 ## 文章索引
@@ -11,6 +11,7 @@
 | 1 | [安装部署-docker](1.安装部署-docker.md) | valkey-server/valkey-cli、与 redis 容器的差异 | ✅ 已实测 |
 | 2 | [与Redis兼容性实测](2.与Redis兼容性实测.md) | 客户端/ACL/RESP3/RDB 互导矩阵 | ✅ 已实测 |
 | 3 | [主从复制与迁移路径](3.主从复制与迁移路径.md) | 自身复制、跨软件复制实测、迁移三路线 | ✅ 已实测 |
+| 4 | [Cluster与哨兵实测](4.Cluster与哨兵实测.md) | 「换名即可」收口:建群/接管/迁槽/哨兵全通,镜像 entrypoint 差异 | ✅ 已实测 |
 
 ## 一分钟选型结论(实测依据见第 2/3 篇)
 
@@ -62,13 +63,15 @@ timeline
 | redis-cli 直连 valkey | `redis-cli -h <valkey 主机>` | 第 2 篇实测全通 |
 | 识别服务端类型 | `INFO server` 看 `server_name` | 值为 `valkey`;redis 无此字段,出现即 valkey |
 | 判断兼容能力集 | `INFO server` 看 `redis_version` | 实测 7.2.4,按 Redis 7.2 能力集对待 |
+| 集群管理 | `valkey-cli --cluster create/reshard/check/...` | 第 4 篇实测全通,同 redis-cli 语法 |
+| 哨兵 | `valkey-sentinel`,镜像内自带 | 第 4 篇实测 7.8s 切主;容器以 root 跑(见该篇镜像差异节) |
 | 巡检 | redis.md 的 R01~R13 命令面 | valkey-cli 同语法,INFO 字段一致(实测) |
 
 ### 核心原理
 
 #### 与 Redis 共享的内核原理
 
-跳表(zskiplist)、SDS 与渐进式 rehash、单线程命令执行 + IO 线程、fork/COW 持久化、Cluster 16384 槽 CRC16、哨兵 quorum 选举——**原样适用于 Valkey**,展开见 [../redis/README.md](../redis/README.md)「组件介绍·核心原理」的对应小节。redis 目录 [第 4 篇](../redis/4.持久化与备份恢复.md)(kill -9 恢复)、[第 5 篇](../redis/5.主从与哨兵.md)(18 秒切换)、[第 6 篇](../redis/6.Cluster集群.md)(MOVED、杀主接管)的实测方法在 Valkey 上同样可复用——命令同构、INFO 字段一致(实测)。
+跳表(zskiplist)、SDS 与渐进式 rehash、单线程命令执行 + IO 线程、fork/COW 持久化、Cluster 16384 槽 CRC16、哨兵 quorum 选举——**原样适用于 Valkey**,展开见 [../redis/README.md](../redis/README.md)「组件介绍·核心原理」的对应小节。redis 目录 [第 4 篇](../redis/4.持久化与备份恢复.md)(kill -9 恢复)的实测方法同样可复用——命令同构、INFO 字段一致(实测);[第 5 篇](../redis/5.主从与哨兵.md) 与 [第 6 篇](../redis/6.Cluster集群.md) 的哨兵与 Cluster 方法**已实测复用**([第 4 篇](4.Cluster与哨兵实测.md):`--cluster` 管理器全通、杀主 20s 恢复写、哨兵 7.8s 切主;唯一行为差异在镜像 entrypoint 的 root 兜底 chown,redis 的目录属主 crash 坑不复现)。
 
 #### 差异一:fork 治理——Linux 基金会与社区民主化
 
@@ -112,15 +115,17 @@ flowchart LR
 
 ### 与本文档集的衔接
 
-- 通用原理与运维全套 → [../redis/](../redis/README.md)「组件介绍」及其第 4/5/6 篇(哨兵 18 秒切换、MOVED、kill -9 恢复的方法在 Valkey 同样适用);
+- 通用原理与运维全套 → [../redis/](../redis/README.md)「组件介绍」及其第 4/5/6 篇(哨兵、Cluster 的方法在 Valkey 上已实测复用,见 [第 4 篇](4.Cluster与哨兵实测.md));
 - 兼容性矩阵(客户端/ACL/RESP3/RDB 互导)→ [第 2 篇](2.与Redis兼容性实测.md):**RDB v12(Redis 8.0 写)被 Valkey 8.1 拒载**,反向 valkey → redis 8.0 加载成功;
 - 迁移路径(跨软件复制被挡后的逻辑迁移三路线)→ [第 3 篇](3.主从复制与迁移路径.md);
+- Cluster/哨兵实测与镜像 entrypoint 差异 → [第 4 篇](4.Cluster与哨兵实测.md);
 - Redis 侧视角(2024 许可变更完整叙事)→ [../redis/README.md](../redis/README.md)。
 
 待补实测:
 
 > ✅ **异步 IO 线程压测已实测**(2026-10-09,4C VM,valkey-benchmark 200 连接 × 4KB × 10 万请求):基线(io-threads=1)GET **58617 rps / p50 1.67ms**(同参数下比 Redis 8.0 基线 53908 高 ~9%),**开 io-threads=3 后暴跌 59%**(23844 rps / p50 7.34ms)——小核 + 回环 + 中小 value 场景异步 IO 线程是纯负资产;与 Redis 8.0 的 io-threads 压测(同法,-8%)同结论:**本套基线不开 IO 线程**,万级连接/大 value/多核专用机再议。
 > ✅ **RSS 对比已实测**(2026-10-09):同 63123 键数据集(redis-shake 迁移后),Redis 8.0 used_memory 12.81MB / RSS 30.86MB,Valkey 8.1 used_memory 11.71MB / **RSS 23.47MB(-24%)**——上游"内存效率"口径在本套硬件量化成立。
+> ✅ **Cluster 与哨兵已实测**(2026-11-23,valkey-c1/2/3,8.1.12):`--cluster` 管理器全通,三主三从建群、杀主 20s 恢复写、两轮在线迁槽零中断、哨兵停主 7.8s 切主、旧主自动降从;redis 的「目录属主 crash」坑被镜像 entrypoint(root 兜底 chown + 降权)结构性消除,`valkey-sentinel` 容器以 root 跑是遗留差异——详见 [第 4 篇](4.Cluster与哨兵实测.md)。
 
 ## 资料索引
 
