@@ -1,0 +1,13 @@
+[Unit]
+Description=集客AC AP 状态推送（飞书卡片）
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/ac-ap-guard
+EnvironmentFile=/etc/ac-ap-guard/ac-ap-guard.env
+# 目标机是 UTC 时区，卡片时间统一按北京时间
+Environment=TZ=Asia/Shanghai
+ExecStart=/usr/bin/python3 /opt/ac-ap-guard/ac_ap_guard.py --report
+TimeoutStartSec=90

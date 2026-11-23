@@ -1,0 +1,13 @@
+[Unit]
+Description=每日 09:00 与 14:00 推送 AP 状态
+
+[Timer]
+# 目标机系统时区是 UTC，显式带时区，避免 09:00 变成北京时间 17:00
+OnCalendar=*-*-* 09,14:00:00 Asia/Shanghai
+# 停机错过的推送，开机后补一次
+Persistent=true
+AccuracySec=1min
+Unit=ac-ap-guard-report.service
+
+[Install]
+WantedBy=timers.target

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""集客 AC 控制台 · AP 零终端 / 离线守护
+"""集客 AC 控制台 · 巡检与 AP 零终端 / 离线守护
 
 流程（与网页端操作一一对应）：
   1. 登录          GET  /api/getrandom  ->  POST /api/sysauth   （password = md5(random + 明文)）
@@ -10,6 +10,8 @@
   4. 终端数为 0 时发飞书卡片告警，默认每 300 秒复查一次，
      直到终端数 > 阈值（默认 3）才发恢复卡片并解除该 AP 的告警状态；
      AP 离线时单独告警，重新上线发恢复卡片，离线期间不下发配置。
+  5. --inspect 模式跑一次 AC01–AC05 巡检（可用性、在线率、终端数、固件一致性、
+     终端对账），退出码 0 健康 / 1 有异常 / 2 自身故障；--fix 对 AC03 命中项重推。
 
 配置全部走命令行参数或环境变量，代码里不含地址和密码：
   AC_BASE_URL / AC_PASSWORD / FEISHU_WEBHOOK / FEISHU_SECRET
@@ -22,7 +24,10 @@
 
 用法：
   ./ac_ap_guard.py --list                        # 只看 AP 列表（第 2 步）
-  ./ac_ap_guard.py --once                        # 巡检一轮就退出（配 cron / systemd timer）
+  ./ac_ap_guard.py --report                      # 推一张 AP 状态卡片（在线/终端数）
+  ./ac_ap_guard.py --inspect                     # 只读巡检 AC01–AC05，退出码 0/1/2
+  ./ac_ap_guard.py --inspect --fix               # 巡检并对 AC03 命中的 AP 重推（须授权）
+  ./ac_ap_guard.py --once                        # 守护巡检一轮就退出（配 cron / systemd timer）
   ./ac_ap_guard.py                               # 常驻，每 300 秒一轮
   ./ac_ap_guard.py --dry-run --once              # 只打印，不真下发、不发飞书
 """
@@ -184,6 +189,18 @@ class ACClient:
             raise ACError(f"查 AP 列表失败：{res.get('msg') or res}")
         return list(res.get("aplist") or [])
 
+    # --- 概览接口（仅 AC05 对账用，取不到就降级） -------------------------
+    def overview(self) -> dict | None:
+        try:
+            res = self.call(
+                "GET",
+                "/api/status/overview",
+                params={"simplify": "no", "_t": now_ms()},
+            )
+        except ACError:
+            return None
+        return res if res.get("acstatus") else None
+
     # --- 第 3 步：重新下发配置 -------------------------------------------
     def reissue(self, aps: list[dict]) -> dict[str, dict]:
         """按当前模板分组下发，等价于网页"勾选 AP → 重新下发配置"。
@@ -306,6 +323,90 @@ def build_card(kind: str, ap: dict, ctx: dict) -> dict:
     }
 
 
+def build_status_card(aps: list[dict], ctx: dict) -> dict:
+    """每日状态卡片：每台 AP 的在线状态与终端数。"""
+
+    def field(label: str, value: object, short: bool = True) -> dict:
+        return {"is_short": short, "text": {"tag": "lark_md", "content": f"**{label}**\n{value}"}}
+
+    def ap_count(ap: dict) -> int:
+        try:
+            return int(ap.get("clientnum") or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    online = [ap for ap in aps if str(ap.get("online", "")).lower() == "yes"]
+    total_clients = sum(ap_count(ap) for ap in aps)
+    all_online = bool(aps) and len(online) == len(aps)
+
+    lines = []
+    for ap in sorted(aps, key=lambda a: str(a.get("name") or a.get("mac") or "")):
+        is_online = str(ap.get("online", "")).lower() == "yes"
+        mark = "🟢 在线" if is_online else "🔴 离线"
+        lines.append(f"**{ap.get('name') or '-'}**　{mark}　·　终端 **{ap_count(ap)}**")
+    if not lines:
+        lines.append("AP 列表为空")
+
+    return {
+        "msg_type": "interactive",
+        "card": {
+            "config": {"wide_screen_mode": True, "enable_forward": True},
+            "header": {
+                "template": "green" if all_online else "orange",
+                "title": {"tag": "plain_text", "content": f"📊 AP 状态 · {ctx['checked_at']}"},
+            },
+            "elements": [
+                {"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}},
+                {"tag": "hr"},
+                {
+                    "tag": "div",
+                    "fields": [
+                        field("AP 在线", f"{len(online)}/{len(aps)}"),
+                        field("终端合计", total_clients),
+                        field("采集时间", ctx["checked_at"]),
+                    ],
+                },
+                {"tag": "hr"},
+                {
+                    "tag": "note",
+                    "elements": [
+                        {
+                            "tag": "plain_text",
+                            "content": f"集客AC控制台 {ctx['base_url']} · 每日 09:00 / 14:00 推送",
+                        }
+                    ],
+                },
+            ],
+        },
+    }
+
+
+def run_report(client: ACClient, args: argparse.Namespace) -> int:
+    """拉一次 AP 列表，推一张状态卡片（在线状态 + 终端数）。"""
+    try:
+        aps = client.list_aps()
+    except (AuthError, ACError) as exc:
+        LOG.error("状态推送失败：%s", exc)
+        return 1
+
+    if not aps:
+        LOG.warning("AP 列表为空，仍推送空状态")
+
+    def ap_count(ap: dict) -> int:
+        try:
+            return int(ap.get("clientnum") or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    online = sum(1 for ap in aps if str(ap.get("online", "")).lower() == "yes")
+    total_clients = sum(ap_count(ap) for ap in aps)
+    LOG.info("AP 状态：在线 %d/%d，终端合计 %d", online, len(aps), total_clients)
+
+    card = build_status_card(aps, {"base_url": client.base_url, "checked_at": ts_str()})
+    ok = send_feishu(args.feishu_webhook, args.feishu_secret, card, dry_run=args.dry_run)
+    return 0 if ok else 1
+
+
 def send_feishu(webhook: str, secret: str, card: dict, dry_run: bool = False) -> bool:
     if not webhook:
         LOG.warning("未配置飞书 webhook，告警卡片仅打印：\n%s", json.dumps(card, ensure_ascii=False, indent=2))
@@ -411,8 +512,9 @@ class Guard:
             name = str(ap.get("name") or mac)
             try:
                 count = int(ap.get("clientnum") or 0)
+                uptime = int(ap.get("uptime") or 0)
             except (TypeError, ValueError):
-                count = 0
+                count, uptime = 0, 0
             online = str(ap.get("online", "")).lower() == "yes"
             st = self._st(mac)
             now = time.time()
@@ -519,6 +621,13 @@ class Guard:
             # ---- 零终端状态机 ----
             if count == 0:
                 if not st["alerting"]:
+                    # 刚重启的 AP 给终端回流窗口，避免"重启即告警+重推"
+                    if 0 < uptime < self.args.uptime_grace:
+                        LOG.info(
+                            "%s 在线 %d 秒（< %d 秒豁免窗口），终端未回流，本轮不告警",
+                            name, uptime, self.args.uptime_grace,
+                        )
+                        continue
                     # 刚掉到 0：下发配置 + 首告警
                     st.update(alerting=True, since=now, last_alert=now)
                     reissue_result = self._reissue([ap])
@@ -613,17 +722,144 @@ class Guard:
             return {"error": str(exc)}
 
 
+# ---------------------------------------------------------------- 一次性巡检
+
+
+def run_inspect(client: ACClient, args: argparse.Namespace) -> int:
+    """AC01–AC05 只读巡检；--fix 时对 AC03 命中的 AP 按模板重推（须授权）。
+
+    退出码：0 健康 / 1 存在异常 / 2 巡检自身故障。
+    """
+    # AC01 服务可用：登录 + 取数任一失败即自身故障
+    try:
+        aps = client.list_aps()
+    except AuthError as exc:
+        LOG.error("巡检自身故障（AC01 登录失败）：%s", exc)
+        return 2
+    except ACError as exc:
+        LOG.error("巡检自身故障（AC01 接口不可达）：%s", exc)
+        return 2
+    LOG.info("AC01 服务可用：登录成功")
+
+    ov = client.overview()
+
+    p1: list[str] = []
+    p2: list[str] = []
+    exempt: list[str] = []
+    fix_aps: list[dict] = []
+
+    # AC02 AP 在线率：任一离线 P1，全部离线 P0
+    offline = [ap for ap in aps if str(ap.get("online", "")).lower() != "yes"]
+    if offline:
+        level = "P0" if len(offline) == len(aps) else "P1"
+        names = "、".join(f"{ap.get('name')}({ap.get('ip')})" for ap in offline)
+        p1.append(f"| AC02 | AP 在线率 | 离线:{names} | 0 台离线 | {level} | 查 POE 供电/网线,重电无效再查 AP 自身 |")
+
+    # AC03 终端数异常：在线且 clientnum <= 阈值；在线不足豁免窗口记豁免
+    for ap in aps:
+        if str(ap.get("online", "")).lower() != "yes":
+            continue
+        try:
+            count = int(ap.get("clientnum") or 0)
+            uptime = int(ap.get("uptime") or 0)
+        except (TypeError, ValueError):
+            count, uptime = 0, 0
+        if count > args.threshold:
+            continue
+        if uptime < args.uptime_grace:
+            exempt.append(f"| AC03 | {ap.get('name')} | 终端数 {count},在线 {uptime // 60} 分钟,判为刚重启 |")
+            continue
+        template = str(ap.get("template") or "default")
+        p1.append(
+            f"| AC03 | {ap.get('name')} | 终端数异常 | {count} | ≤ {args.threshold} | P1 | "
+            f"按模板 {template} 重推配置(--fix,须授权);复发则重启 AP |"
+        )
+        fix_aps.append(ap)
+
+    # AC04 固件版本一致性：版本不唯一或有低版本标记
+    versions = sorted({str(ap.get("version") or "") for ap in aps})
+    if len(versions) > 1 or any(ap.get("is_low_version") is True for ap in aps):
+        p2.append(f"| AC04 | 固件版本一致性 | 版本:{','.join(versions)} | 全网单一版本 | P2 | 低版本走升级流程,变更窗口执行 |")
+
+    # AC05 终端总数对账：AP 侧之和 vs 概览
+    if ov:
+        try:
+            ap_sum = sum(int(ap.get("clientnum") or 0) for ap in aps)
+            ac_total = int((ov.get("acstatus") or {}).get("client_num") or 0)
+            diff = abs(ap_sum - ac_total)
+            limit = max(5, ac_total // 5)
+            if diff > limit:
+                p2.append(
+                    f"| AC05 | 终端总数对账 | AP 侧 {ap_sum} vs AC 侧 {ac_total} | 差 ≤ {limit} 台 | P2 | "
+                    f"两接口有取样时间差,持续偏差查假死终端 |"
+                )
+        except (TypeError, ValueError):
+            ov = None
+    else:
+        p2.append("| AC05 | 终端总数对账 | 数据缺失(overview 不可达) | — | P2 | 检查 AC 状态接口后复巡 |")
+
+    rc = 1 if (p1 or p2) else 0
+    do_fix = bool(args.fix and fix_aps)
+
+    # ---- 输出：固定先答"是否下发"，再全量清单，再异常 ----
+    if do_fix and not args.dry_run:
+        LOG.info("下发配置：有（--fix 处置，推送对象与受理结果见文末处置记录）")
+    else:
+        LOG.info("下发配置：无（未执行处置，未向 AC 下发任何命令）")
+
+    LOG.info("---- 全量清单（名称/IP/连接数/状态/版本/模板） ----")
+    for ap in aps:
+        print(
+            f"{str(ap.get('name', '-')):<10} {str(ap.get('ip', '-')):<16} "
+            f"{str(ap.get('clientnum', '-')):<6} {str(ap.get('online', '-')):<6} "
+            f"{str(ap.get('version', '-')):<16} {ap.get('template', '-')}"
+        )
+
+    if p1 or p2:
+        LOG.info("---- 异常项（级别|编号|巡检项|当前值|阈值|处置建议） ----")
+        for row in p1 + p2:
+            print(row)
+    else:
+        LOG.info("巡检通过：AC01–AC05 全部健康")
+
+    if exempt:
+        LOG.info("---- 豁免项 ----")
+        for row in exempt:
+            print(row)
+
+    # ---- 处置（仅 --fix）：按模板分组重推 ----
+    if args.fix:
+        if not fix_aps:
+            LOG.info("处置：无 AC03 异常，无需重推")
+        elif args.dry_run:
+            LOG.info("[dry-run] 跳过下发：%s", [ap.get("name") for ap in fix_aps])
+        else:
+            try:
+                for template, res in client.reissue(fix_aps).items():
+                    if res.get("ret") == 1:
+                        LOG.info("处置已下发：模板 %s 受理成功，终端回流以下一轮巡检为准", template)
+                    else:
+                        LOG.error("处置失败：模板 %s %s", template, res.get("msg") or res)
+            except ACError as exc:
+                LOG.error("处置失败：%s", exc)
+
+    LOG.info("巡检结束（退出码 %d）", rc)
+    return rc
+
+
 # ---------------------------------------------------------------- 入口
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="集客 AC 控制台 AP 零终端守护")
+    p = argparse.ArgumentParser(description="集客 AC 巡检与 AP 零终端/离线守护")
     p.add_argument("--base-url", default=os.getenv("AC_BASE_URL", DEFAULT_BASE_URL))
     p.add_argument("--password", default=os.getenv("AC_PASSWORD", DEFAULT_PASSWORD), help="控制台管理密码")
     p.add_argument("--feishu-webhook", default=os.getenv("FEISHU_WEBHOOK", ""), help="飞书自定义机器人 webhook")
     p.add_argument("--feishu-secret", default=os.getenv("FEISHU_SECRET", ""), help="飞书机器人签名密钥（可选）")
     p.add_argument("--threshold", type=int, default=int(os.getenv("AC_THRESHOLD", DEFAULT_THRESHOLD)),
                    help=f"终端数 > 该值视为恢复（默认 {DEFAULT_THRESHOLD}）")
+    p.add_argument("--uptime-grace", type=int, default=int(os.getenv("AC_UPTIME_GRACE", 600)),
+                   help="AC03 豁免：在线不足该秒数视为刚重启（默认 600）")
     p.add_argument("--interval", type=int, default=int(os.getenv("AC_INTERVAL", DEFAULT_INTERVAL)),
                    help=f"巡检间隔秒数（默认 {DEFAULT_INTERVAL}）")
     p.add_argument("--reissue-cooldown", type=int, default=int(os.getenv("AC_REISSUE_COOLDOWN", DEFAULT_REISSUE_COOLDOWN)),
@@ -637,6 +873,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--state-file", default=os.getenv("AC_STATE_FILE", "ac_ap_guard_state.json"),
                    help="告警状态文件，--once 模式跨轮次保持")
     p.add_argument("--once", action="store_true", help="只巡检一轮就退出（适合 cron / systemd timer）")
+    p.add_argument("--report", action="store_true",
+                   help="拉一次 AP 列表并推送状态卡片后退出（供 systemd timer / cron 调用）")
+    p.add_argument("--inspect", action="store_true",
+                   help="跑一次 AC01–AC05 只读巡检后退出（退出码 0 健康 / 1 有异常 / 2 自身故障）")
+    p.add_argument("--fix", action="store_true",
+                   help="配合 --inspect：对 AC03 命中的 AP 按模板重推配置（须授权）")
     p.add_argument("--list", action="store_true", help="只打印 AP 列表后退出")
     p.add_argument("--test-card", nargs="?", const="alert", choices=["alert", "offline"],
                    help="发一张样例卡片后退出（alert=零终端，offline=离线），用来验证 webhook")
@@ -659,10 +901,13 @@ def setup_logging(args: argparse.Namespace) -> None:
 
 
 def main() -> int:
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
+    if args.fix and not args.inspect:
+        parser.error("--fix 只能与 --inspect 一起使用")
     setup_logging(args)
 
-    guard = Guard(ACClient(args.base_url, args.password), args)
+    client = ACClient(args.base_url, args.password)
 
     if args.test_card:
         sample = {
@@ -692,6 +937,22 @@ def main() -> int:
             card = build_card("alert", sample, ctx)
         ok = send_feishu(args.feishu_webhook, args.feishu_secret, card, dry_run=args.dry_run)
         return 0 if ok else 1
+
+    if args.report:
+        try:
+            return run_report(client, args)
+        except ACError as exc:
+            LOG.error("状态推送失败：%s", exc)
+            return 1
+
+    if args.inspect:
+        try:
+            return run_inspect(client, args)
+        except ACError as exc:
+            LOG.error("巡检自身故障：%s", exc)
+            return 2
+
+    guard = Guard(client, args)
 
     if args.list:
         aps = guard._filter_aps(guard.client.list_aps())
