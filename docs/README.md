@@ -68,4 +68,5 @@
 - 🤖 **本地大模型**：[llamacpp](部署相关/llamacpp/README.md) 部署笔记
 - 🎨 **本地文生图**：[MOSS-Image-SFT](部署相关/moss-image/README.md)，22G 卡上的 5B 模型，fp16 + CPU offload，中文文字渲染
 - 🚪 **AI 中转站**：[sub2api](部署相关/sub2api/README.md) 统一接入团队 AI 编程能力——模型分档口径（GLM/DeepSeek/MiMo/Kimi 走中转，Claude/Codex 自行开通报销）、docker-compose 部署与踩坑
+- 📊 **网关巡检**：[sub2api 巡检](运维巡检/sub2api/README.md)，活跃账号与各自用量、低额度用户、近一小时报错，工作日 9–18 点每小时推飞书卡片
 - 💻 **自研**：[jmqtt-broker](https://github.com/passiolin/jmqtt-broker)（[部署与调优笔记](部署相关/jmqtt/README.md)）

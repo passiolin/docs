@@ -1,0 +1,13 @@
+[Unit]
+Description=sub2api 网关巡检（飞书卡片）
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/sub2api-patrol
+EnvironmentFile=/etc/sub2api-patrol/sub2api-patrol.env
+# 目标机是 UTC 时区时，卡片时间统一按北京时间
+Environment=TZ=Asia/Shanghai
+ExecStart=/usr/bin/python3 /opt/sub2api-patrol/sub2api_patrol.py
+TimeoutStartSec=180

@@ -1,0 +1,13 @@
+[Unit]
+Description=每天 09:00-18:00 每小时巡检 sub2api
+
+[Timer]
+# 9 点到 18 点整点触发，18:00 是当天最后一次；带时区，避免 UTC 机器偏移成北京时间 17:00
+OnCalendar=*-*-* 09..18:00:00 Asia/Shanghai
+# 停机错过的轮次，开机后补一次
+Persistent=true
+AccuracySec=1min
+Unit=sub2api-patrol.service
+
+[Install]
+WantedBy=timers.target
