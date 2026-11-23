@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# 集客 AC 巡检(inspect-ac):AC01 服务可用 / AC02 AP 在线 / AC03 终端数异常 / AC04 版本一致 / AC05 终端对账
+# 集客 AC 巡检:AC01 服务可用 / AC02 AP 在线 / AC03 终端数异常 / AC04 版本一致 / AC05 终端对账
 # 默认只读巡检,退出码:0 健康 / 1 存在 P0·P1 / 2 巡检自身故障
 # --fix 为处置动作(AC03 异常 AP 按模板重推配置):按巡检体系授权红线,仅运维负责人明确指示后运行
-# 用法:AC_PASS='管理密码' ./ac-inspect.sh [--fix]
+# 用法:AC_BASE='http://<AC_IP>:8080' AC_PASS='管理密码' ./ac-inspect.sh [--fix]
 set -euo pipefail
 
-AC_BASE="${AC_BASE:-http://192.168.0.1:8080}"
+AC_BASE="${AC_BASE:?用法: AC_BASE='http://<AC_IP>:8080' AC_PASS='xxx' $0 [--fix]}"
 AC_PASS="${AC_PASS:?用法: AC_PASS='xxx' $0 [--fix]}"
 THRESHOLD="${THRESHOLD:-3}"          # AC03:clientnum <= THRESHOLD 判异常
 UPTIME_GRACE="${UPTIME_GRACE:-600}"  # AC03 豁免:在线不足 600 秒视为刚重启,只记豁免不判异常

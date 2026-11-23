@@ -51,10 +51,11 @@ flowchart LR
 | --- | --- | --- | --- |
 | [inspect-server](./inspect-server/SKILL.md) | Linux 主机(物理机/虚机/宿主机) | node_exporter + shell 盲区 | ✅ 初版 |
 | [inspect-middleware](./inspect-middleware/SKILL.md) | MySQL、Redis、Kafka、Zookeeper、ES、Nginx、Nacos、EMQX、Filebeat、Jenkins | 组件原生 CLI/API 为主,exporter 可选 | ✅ 初版(10 组件 / 100 项,实验机实测) |
-| [inspect-ac](./inspect-ac/SKILL.md) | 无线网:集客 AC 与下挂 AP | AC 管理 HTTP API(补盲面,ac-inspect.sh) | ✅ 初版(5 项,真机实测) |
 | inspect-cloud | 阿里云、AWS | aliyun / aws CLI(非指标类巡检) | 待编写 |
 | inspect-service | liko-* 业务服务 | blackbox 拨测 + ES 日志错误率(复用 filebeat→ES 链路) | 待编写 |
 | inspect-datacenter | 温湿度、UPS、交换机、PDU、机柜电力 | snmp_exporter + 人工巡检清单模板 | 待编写 |
+
+无线网(集客 AC)已迁出 skills:巡检项、接口记录、巡检脚本与常驻守护合并到实施层 [运维巡检/ap-guard](../../运维巡检/ap-guard/README.md),判定口径以那里的[第 2 篇](../../运维巡检/ap-guard/2.接口与巡检项.md)为准。
 
 ## 巡检节奏
 
@@ -82,7 +83,7 @@ flowchart LR
 ## 报告与通知约定
 
 - 报告为 Markdown,按域分节,异常项按级别置顶,每条异常附**当前值、阈值、处置建议**;
-- 命名:`inspect-<域>-YYYYMMDD.md`,归档到实施层 `reports/`(默认 gitignore,防仓库膨胀);
+- 命名:`inspect-<域>-YYYYMMDD.md`,归档到实施层对应主题目录(默认 gitignore,防仓库膨胀);
 - 飞书推送只发异常摘要卡片(P0 额外 @值班),不发全量报告刷屏;
 - 巡检退出码:`0` 健康 / `1` 有告警 / `2` 巡检自身故障(cron 与上层可判断)。
 

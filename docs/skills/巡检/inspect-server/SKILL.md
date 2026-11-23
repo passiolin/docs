@@ -350,7 +350,7 @@ ls -lt /var/log/unattended-upgrades/ | head
 ```
 
 - 豁免项单独成表:对象、编号、豁免原因、生效期;
-- 报告命名 `inspect-server-YYYYMMDD.md`,归档到实施层 `reports/`;
+- 报告命名 `inspect-server-YYYYMMDD.md`,归档到实施层对应主题目录;
 - 巡检结论退出码:0 全部健康 / 1 存在 P0 或 P1 / 2 巡检自身故障(如 Prometheus 不可达),供 cron 与上层系统判断。
 
 ## 巡检项的新增与修改
