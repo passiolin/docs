@@ -1,0 +1,20 @@
+[Unit]
+Description=集客AC AP 零终端与离线守护
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/ac-ap-guard
+EnvironmentFile=/etc/ac-ap-guard/ac-ap-guard.env
+# 目标机是 UTC 时区，卡片与日志统一按北京时间输出
+Environment=TZ=Asia/Shanghai
+ExecStart=/usr/bin/python3 /opt/ac-ap-guard/ac_ap_guard.py \
+    --interval 300 \
+    --state-file /var/lib/ac-ap-guard/state.json
+StateDirectory=ac-ap-guard
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

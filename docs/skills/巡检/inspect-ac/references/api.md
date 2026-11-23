@@ -52,6 +52,17 @@ curl -s -X POST http://192.168.0.1:8080/api/ac/apcmd \
 
 界面那个按钮有个坑:**不勾选直接点,会把当前页全部 AP 都重推一遍**(确认弹窗原文也写明了)。所以巡检必须脚本按 mac 精确"勾选",别在界面上顺手点。
 
+### 4. 删除 AP(误建记录时用)
+
+```bash
+curl -s -X POST http://192.168.0.1:8080/api/ac/del_ap \
+  -H "sysauth: <token>" -H 'Content-Type: application/json' \
+  -d '{"maclist":"001122334455"}'          # 要删的是空记录,示例 MAC 为编造
+# {"msg":"LANG675","ret":1,"param":null}   LANG675 = 删除成功
+```
+
+`settemplate` 对**不存在的 MAC** 会真的建一条空 AP 记录(`name`/`ip` 为空、`online=no`),误探测后只能用这个接口删掉。
+
 ## 二、脚本用法
 
 [ac-inspect.sh](../ac-inspect.sh) 依赖 `curl`、`jq`、`md5sum`,密码经环境变量传入、不落盘。默认只读,一轮跑完 5 个巡检项(AC01 服务可用、AC02 AP 在线率、AC03 终端数异常、AC04 版本一致性、AC05 终端总数对账),阈值与分级以 [inspect-ac skill](../SKILL.md) 为准:
@@ -89,6 +100,8 @@ cron 示例(密码放 root-only 的 env 文件,避免进 crontab 明文;只读�
 | 现象 | 原因与处置 |
 | --- | --- |
 | `msg` 全是 `LANG646`/`LANG687` 这类码 | 服务端返回 i18n key,以 `ret` 为判据;LANG646 = 密码错,LANG687 = 下发受理 |
+| 先后登录两次,旧 token 调接口返回 `ret:-99`、`msg=LANG648`,查询类还附空 `aplist` | AC 只保留一个有效 token,后登录者生效。脚本被顶掉后重登一次即可,别做定时续期——会把正在用的网页端顶下线 |
+| 给不存在的 MAC 调 `settemplate`,列表里多出一台空 AP | 接口会给未知 MAC 建记录,用上文的 `del_ap` 删掉;脚本只推 `apsearch` 返回的 MAC |
 | 刚重启的 AP 被判异常(`clientnum=0`) | 终端还没关联回来,重推一次无害;介意就在判异时对照 `uptime` 人工看一眼 |
 | 离线 AP 出现在清单里 | 脚本不推离线设备(推不动),单独列出等人工上电 |
 | mac 写成 `A4:39:B6:...` 格式导致下发无效 | 接口只认 12 位无冒号小写,界面展示格式是加过冒号的 |
