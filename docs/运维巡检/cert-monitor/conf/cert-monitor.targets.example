@@ -1,0 +1,21 @@
+# SSL 证书监控目标列表:每行一个 TLS 端点,host 默认 443 端口。
+# 可选参数用空格分隔的 key=value:
+#   ca=<文件>     私有 CA 的根证书(可含中间证书);给出后按该 CA 校验证书链
+#   verify=none   跳过信任链校验,只看到期时间(根证书未就位时临时用)
+#   warn=<天>     叶子证书警告阈值,默认 30
+#   crit=<天>     叶子证书严重阈值,默认 7
+#   sni=<名>      握手 SNI,默认取主机名
+#   name=<名>     表格与卡片里的显示名
+#
+# 三个 Let's Encrypt 域名共用一张 *.example.com 通配证书,90 天一轮。
+# 通配证书只能走 DNS-01,续期通常在剩 30 天时触发;警告线压在 28 天,
+# 给续期留两天宽限,过了才说明续期失败,不会在续期窗口前误报。
+dev-nginx.example.com warn=28 crit=7
+dev-api.example.com warn=28 crit=7
+test-nginx.example.com warn=28 crit=7
+
+# MQTTS 8883 是私有 CA 签发的一年期证书。根证书放到目标机后把路径填进 ca,
+# 否则系统信任库只会报 unable to get local issuer certificate,监控会一直红。
+# 根证书只用于链校验,不监控它自己的到期(根 30 年、中间 CA 到 2036)。
+dev-mqtt.example.com:8883 ca=/etc/cert-monitor/iot-root.crt warn=30 crit=14
+test-mqtt.example.com:8883 ca=/etc/cert-monitor/iot-root.crt warn=30 crit=14

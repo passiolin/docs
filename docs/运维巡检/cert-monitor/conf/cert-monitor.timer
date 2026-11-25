@@ -1,0 +1,12 @@
+[Unit]
+Description=工作日 10:00 推送 SSL 证书日报
+
+[Timer]
+# 周一至周五 10:00 一轮;周末不打扰
+OnCalendar=Mon..Fri *-*-* 10:00:00 Asia/Shanghai
+Persistent=true
+AccuracySec=1min
+Unit=cert-monitor.service
+
+[Install]
+WantedBy=timers.target

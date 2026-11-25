@@ -1,0 +1,14 @@
+[Unit]
+Description=SSL 证书日报(飞书卡片)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/cert-monitor
+EnvironmentFile=/etc/cert-monitor/cert-monitor.env
+Environment=TZ=Asia/Shanghai
+ExecStart=/usr/bin/python3 /opt/cert-monitor/cert_monitor.py
+# 证书进入警告/严重区间时退出码是 3/4,这是告警结果,不是脚本运行失败
+SuccessExitStatus=0 3 4
+TimeoutStartSec=300
