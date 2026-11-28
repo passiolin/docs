@@ -61,6 +61,7 @@
 - 🌐 **软路由**：iKuai 虚拟机部署 + NAT/桥接组网、DNS 劫持；[OpenWrt 双 WAN 按目标 IP 分流](部署相关/openwrt/README.md)，国内直连、其余走 VPN
 - 📶 **无线 AC**：[集客 AC 巡检与守护](运维巡检/ap-guard/README.md)，AP 终端数掉零/离线告警、按模板重推配置——接口逆向、巡检脚本与 systemd 常驻守护都在同一目录
 - 🐧 **主机基线**：[Linux](部署相关/linux/README.md)，到手清单（换源/SSH 加固/防火墙）与内核调优，单机十万长连接实测、conntrack 截胡复盘
+- 🔀 **反向代理**：[nginx](部署相关/nginx/README.md)，stream 代理 MQTT 的 80 万长连接实测——配置、sysctl、virtio 多队列与宿主成本模型
 - 🔗 **组网**：Tailscale 不走官方服务——自托管 [headscale + derper](部署相关/tailscale/README.md)；[OpenVPN](部署相关/openvpn/README.md)、WireGuard 异地组网
 - 📦 **自托管中间件**：[MySQL](部署相关/mysql/README.md)、[Redis/Valkey](部署相关/redis/README.md)、[Kafka](部署相关/kafka/README.md)、[Zookeeper](部署相关/zookeeper/README.md)、[Elasticsearch](部署相关/elasticsearch/README.md)，部署、备份、监控写成系列
 - 🗃 **嵌入式数据库**：[SQLite](部署相关/sqlite/README.md)，1C2G/4C2G/4C8G 三档实测：写入、查询、并发与内存使用率，含空闲内存与 ANALYZE 坑
