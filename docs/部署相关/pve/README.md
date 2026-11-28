@@ -14,6 +14,7 @@
 | 2 | [存储性能实测](2.存储性能实测.md) | tank(HDD+缓存)与 local-lvm(NVMe)的 fio 方法论、调优时间线、实测矩阵与踩坑清单 |
 | 3 | [LVM缓存迁移与实测](3.LVM缓存迁移与实测.md) | ZFS→LVM+dm-cache 迁移六阶段、踩坑、热数据 fio 五件套、fsync 特性与回退键 |
 | 4 | [盘参数性能实测](4.盘参数性能实测.md) | 6 台单变量矩阵:io_uring / writeback / unsafe / qcow2 / virtio-blk 对缓存路径的影响、复现步骤与推荐参数集 |
+| 5 | [TrueNAS的NFS性能实测](5.TrueNAS的NFS性能实测.md) | TrueNAS SCALE 25.10.7 虚机(4C/32G + 128G L2ARC):ARC/L2ARC/机械盘三档、ZFS 参数矩阵、dm-cache passthrough 崩溃实录与接续信息 |
 
 ## 一、要解决的问题
 

@@ -58,6 +58,7 @@
 下班后的基础设施，博客大半文章来自这里：
 
 - 🖥 **虚拟化**：[PVE](部署相关/pve/README.md)，显卡直通（IOMMU/VFIO 全流程踩坑）、ZFS raidz1
+- 🗄 **NAS 虚机**：[TrueNAS NFS 性能实测](部署相关/pve/5.TrueNAS的NFS性能实测.md)，4C/32G + 128G L2ARC，ARC/NVMe/机械盘三档与 ZFS 参数矩阵
 - 🌐 **软路由**：iKuai 虚拟机部署 + NAT/桥接组网、DNS 劫持；[OpenWrt 双 WAN 按目标 IP 分流](部署相关/openwrt/README.md)，国内直连、其余走 VPN
 - 📶 **无线 AC**：[集客 AC 巡检与守护](运维巡检/ap-guard/README.md)，AP 终端数掉零/离线告警、按模板重推配置——接口逆向、巡检脚本与 systemd 常驻守护都在同一目录
 - 🐧 **主机基线**：[Linux](部署相关/linux/README.md)，到手清单（换源/SSH 加固/防火墙）与内核调优，单机十万长连接实测、conntrack 截胡复盘
